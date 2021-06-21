@@ -1,7 +1,7 @@
 {
   "name": "heimrichhannot/contao-advanced-dashboard-bundle",
   "type": "contao-bundle",
-  "description": "A bundle to customization to the contao backend dashboard.",
+  "description": "A bundle to customize the contao backend dashboard.",
   "license": "LGPL-3.0-or-later",
   "require": {
     "php": "^7.2",
