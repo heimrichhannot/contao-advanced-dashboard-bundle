@@ -1,0 +1,18 @@
+{
+  "name": "heimrichhannot/contao-advanced-dashboard-bundle",
+  "type": "contao-bundle",
+  "description": "A bundle to customization to the contao backend dashboard.",
+  "license": "LGPL-3.0-or-later",
+  "require": {
+    "php": "^7.2",
+    "contao/core-bundle": "^4.9"
+  },
+  "autoload": {
+    "psr-4": {
+      "HeimrichHannot\\AdvancedDashboardBundle\\": "src/"
+    }
+  },
+  "extra": {
+    "contao-manager-plugin": "HeimrichHannot\\AdvancedDashboardBundle\\ContaoManager\\Plugin"
+  }
+}
