@@ -8,6 +8,8 @@
 
 namespace HeimrichHannot\AdvancedDashboardBundle;
 
-class HeimrichHannotAdvancedDashboardBundle
+use Symfony\Component\HttpKernel\Bundle\Bundle;
+
+class HeimrichHannotAdvancedDashboardBundle extends Bundle
 {
 }
