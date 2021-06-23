@@ -20,19 +20,30 @@
 
     <div id="tl_versions">
         <h2>{{ 'MSC.latestChanges'|trans({}, 'contao_default') }}</h2>
+        {% if versions|default %}
+        <table class="tl_listing">
+            {% if columns|default %}
+                <thead>
+                <tr>
+                {% for column in columns %}
+                    <th>{{ column.label|default }}</th>
+                {% endfor %}
+                </tr>
+                </thead>
+            {% endif %}
+            <tbody>
+            {% for version in versions %}
+                <tr class="{{ versions.class|default }} click2edit hover-row">
+                    {% for column in version %}
+                        <td>{{ column|raw }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
 {#        <?php if (!empty($this->versions)): ?>#}
 {#        <table class="tl_listing">#}
-{#            <thead>#}
-{#            <tr>#}
-{#                <th><?= $GLOBALS['TL_LANG']['MSC']['date'] ?></th>#}
-{#                <th><?= $GLOBALS['TL_LANG']['MSC']['user'] ?></th>#}
-{#                <th><?= $GLOBALS['TL_LANG']['MSC']['table'] ?></th>#}
-{#                <th>ID</th>#}
-{#                <th><?= $GLOBALS['TL_LANG']['MSC']['description'] ?></th>#}
-{#                <th><?= $GLOBALS['TL_LANG']['MSC']['version'] ?></th>#}
-{#                <th></th>#}
-{#            </tr>#}
-{#            </thead>#}
 {#            <tbody>#}
 {#            <?php foreach ($this->versions as $version): ?>#}
 {#            <tr class="<?= $version['class'] ?> click2edit hover-row">#}

@@ -6,11 +6,11 @@
  * @license LGPL-3.0-or-later
  */
 
-namespace HeimrichHannot\AdvancedDashboardBundle\EventListener;
+namespace HeimrichHannot\AdvancedDashboardBundle\Event;
 
 use Symfony\Contracts\EventDispatcher\Event;
 
-class VersionListDatabaseColumnsEvent extends Event
+class VersionsListDatabaseColumnsEvent extends Event
 {
     private $fields = [];
 

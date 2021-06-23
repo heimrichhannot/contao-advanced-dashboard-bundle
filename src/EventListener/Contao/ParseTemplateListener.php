@@ -10,6 +10,7 @@ namespace HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao;
 
 use Contao\CoreBundle\ServiceAnnotation\Hook;
 use Contao\Template;
+use HeimrichHannot\AdvancedDashboardBundle\Generator\VersionsListGenerator;
 use HeimrichHannot\TwigSupportBundle\EventListener\RenderListener;
 
 /**
@@ -19,19 +20,28 @@ use HeimrichHannot\TwigSupportBundle\EventListener\RenderListener;
  */
 class ParseTemplateListener
 {
-    protected RenderListener $renderListener;
+    protected $renderListener;
+    /**
+     * @var VersionsListGenerator
+     */
+    protected $versionListGenerator;
 
-    public function __construct(RenderListener $renderListener)
+    public function __construct(RenderListener $renderListener, VersionsListGenerator $versionListGenerator)
     {
         $this->renderListener = $renderListener;
+        $this->versionListGenerator = $versionListGenerator;
     }
 
     public function __invoke(Template $template): void
     {
         if ('be_welcome' === $template->getName()) {
-//            $template->setName('be_advanced_dashboard');
-//            $this->renderListener->prepareContaoTemplate($template);
-//            return;
+            ['versions' => $versions, 'columns' => $columns, 'pagination' => $pagination] =
+                $this->versionListGenerator->generate();
+            $template->setName('be_advanced_dashboard');
+            $template->versions = $versions;
+            $template->pagination = $pagination;
+            $template->columns = $columns;
+            $this->renderListener->prepareContaoTemplate($template);
         }
     }
 }
