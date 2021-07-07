@@ -12,42 +12,42 @@ use Symfony\Contracts\EventDispatcher\Event;
 
 class VersionsListDatabaseColumnsEvent extends Event
 {
-    private $fields = [];
+    private $columns = [];
 
     /**
      * VersionListDatabaseColumnsEvent constructor.
      */
-    public function __construct(array $fields)
+    public function __construct(array $columns)
     {
-        $this->fields = $fields;
+        $this->columns = $columns;
     }
 
-    public function hasField(string $field): bool
+    public function hasColumn(string $column): bool
     {
-        return \in_array($field, $this->fields);
+        return \in_array($column, $this->columns);
     }
 
-    public function addField(string $field): void
+    public function addColumn(string $column): void
     {
-        if (!$this->hasField($field)) {
-            $this->fields[] = $field;
+        if (!$this->hasColumn($column)) {
+            $this->columns[] = $column;
         }
     }
 
-    public function removeField(string $field): void
+    public function removeColumn(string $column): void
     {
-        if (false !== ($key = array_search($field, $this->fields))) {
-            unset($this->fields[$key]);
+        if (false !== ($key = array_search($column, $this->columns))) {
+            unset($this->columns[$key]);
         }
     }
 
-    public function getFields(): array
+    public function getColumns(): array
     {
-        return $this->fields;
+        return $this->columns;
     }
 
-    public function setFields(array $fields): void
+    public function setColumns(array $columns): void
     {
-        $this->fields = $fields;
+        $this->columns = $columns;
     }
 }

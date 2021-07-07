@@ -10,7 +10,8 @@ namespace HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao;
 
 use Contao\CoreBundle\ServiceAnnotation\Hook;
 use Contao\Template;
-use HeimrichHannot\AdvancedDashboardBundle\Generator\VersionsListGenerator;
+use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListConfigurationFactory;
+use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListGenerator;
 use HeimrichHannot\TwigSupportBundle\EventListener\RenderListener;
 
 /**
@@ -20,23 +21,27 @@ use HeimrichHannot\TwigSupportBundle\EventListener\RenderListener;
  */
 class ParseTemplateListener
 {
+    /** @var RenderListener */
     protected $renderListener;
-    /**
-     * @var VersionsListGenerator
-     */
+
+    /** @var VersionListGenerator */
     protected $versionListGenerator;
 
-    public function __construct(RenderListener $renderListener, VersionsListGenerator $versionListGenerator)
+    /** @var VersionListConfigurationFactory */
+    protected $configurationFactory;
+
+    public function __construct(RenderListener $renderListener, VersionListGenerator $versionListGenerator, VersionListConfigurationFactory $configurationFactory)
     {
         $this->renderListener = $renderListener;
         $this->versionListGenerator = $versionListGenerator;
+        $this->configurationFactory = $configurationFactory;
     }
 
     public function __invoke(Template $template): void
     {
         if ('be_welcome' === $template->getName()) {
             ['versions' => $versions, 'columns' => $columns, 'pagination' => $pagination] =
-                $this->versionListGenerator->generate();
+                $this->versionListGenerator->generate($this->configurationFactory->createConfigurationForCurrentUser());
             $template->setName('be_advanced_dashboard');
             $template->versions = $versions;
             $template->pagination = $pagination;

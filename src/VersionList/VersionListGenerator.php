@@ -6,7 +6,7 @@
  * @license LGPL-3.0-or-later
  */
 
-namespace HeimrichHannot\AdvancedDashboardBundle\Generator;
+namespace HeimrichHannot\AdvancedDashboardBundle\VersionList;
 
 use Contao\BackendTemplate;
 use Contao\BackendUser;
@@ -23,7 +23,7 @@ use HeimrichHannot\AdvancedDashboardBundle\Event\VersionsListTableColumnsEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Routing\RouterInterface;
 
-class VersionsListGenerator
+class VersionListGenerator
 {
     protected $eventDispatcher;
     /**
@@ -42,35 +42,30 @@ class VersionsListGenerator
         $this->router = $router;
     }
 
-    public function generate(): array
+    public function generate(VersionListConfiguration $configuration): array
     {
-        $options = new \stdClass();
-
-        $options->user = 'default';
-        $options->user = 0;
-//        $options->user = [1,3,4];
-
         $userFilterValues = [];
 
-        if (!\is_array($options->user) && !\is_int($options->user)) {
-            throw new \InvalidArgumentException('User must be either integer or an array of integers.');
-        }
-
-        if (\is_array($options->user)) {
-            $user = array_filter($options->user, 'is_int');
+        if (\is_array($configuration->getAllowedUsers())) {
+            $user = array_filter($configuration->getAllowedUsers(), 'is_int');
 
             if (empty($user)) {
                 throw new \InvalidArgumentException('User must be either integer or an array of integers.');
             }
             $userFilterQuery = ' AND userid IN ('.implode(', ', $user).')';
-        } elseif (0 === $options->user) {
+        } elseif (0 === $configuration->getAllowedUsers()) {
             $userFilterQuery = '';
         } else {
             $userFilterQuery = 'AND userid=?';
-            $userFilterValues[] = $options->user;
+            $userFilterValues[] = $configuration->getAllowedUsers();
         }
 
-        $stmt = $this->connection->prepare('SELECT COUNT(*) AS count FROM tl_version WHERE editUrl IS NOT NULL'.$userFilterQuery);
+        $tableFilterQuery = '';
+        if (!empty($configuration->getTables())) {
+            $tableFilterQuery = ' AND fromTable IN (\''.implode("','", $configuration->getTables()).'\')';
+        }
+
+        $stmt = $this->connection->prepare('SELECT COUNT(*) AS count FROM tl_version WHERE editUrl IS NOT NULL'.$userFilterQuery.$tableFilterQuery);
         $result = $stmt->executeQuery($userFilterValues);
         $versionCount = $result->fetchOne();
 
@@ -83,65 +78,29 @@ class VersionsListGenerator
             header('HTTP/1.1 404 Not Found');
         }
 
-        $defaultFields = ['pid', 'tstamp', 'version', 'fromTable', 'username', 'userid', 'description', 'editUrl', 'active'];
+        $defaultDatabaseColumns = ['pid', 'tstamp', 'version', 'fromTable', 'username', 'userid', 'description', 'editUrl', 'active'];
 
         /** @var VersionsListDatabaseColumnsEvent $event */
-        $event = $this->eventDispatcher->dispatch(new VersionsListDatabaseColumnsEvent($defaultFields));
+        $event = $this->eventDispatcher->dispatch(new VersionsListDatabaseColumnsEvent($defaultDatabaseColumns));
 
-        $fields = implode(', ', $event->getFields());
-
-        $columns = [
-            'date' => [
-                'label' => $GLOBALS['TL_LANG']['MSC']['date'],
-                'renderCallback' => function (array $version) {
-                    return $version['date'];
-                },
-            ],
-            'user' => [
-                'label' => $GLOBALS['TL_LANG']['MSC']['user'],
-                'renderCallback' => function (array $version) {
-                    return $version['username'] ?: '-';
-                },
-            ],
-            'table' => [
-                'label' => $GLOBALS['TL_LANG']['MSC']['table'],
-                'renderCallback' => function (array $version) {
-                    return $version['shortTable'];
-                },
-            ],
-            'id' => [
-                'label' => 'ID',
-                'renderCallback' => function (array $version) {
-                    return $version['pid'];
-                },
-            ],
-            'description' => [
-                'label' => $GLOBALS['TL_LANG']['MSC']['description'],
-                'renderCallback' => function (array $version) {
-                    return $version['description'] ?: '-';
-                },
-            ],
-            'version' => [
-                'label' => $GLOBALS['TL_LANG']['MSC']['version'],
-                'renderCallback' => function (array $version) {
-                    return $version['active'] ? '<strong>'.$version['version'].'</strong>' : $version['version'];
-                },
-            ],
-            'actions' => [
-                'renderCallback' => [$this, 'renderRowActions'],
-            ],
-        ];
-
-        $columns = $this->eventDispatcher->dispatch(new VersionsListTableColumnsEvent($columns))->getColumns();
+        $fields = implode(', ', $event->getColumns());
 
         // Get the versions
-
         $stmt = $this->connection->prepare(
-            "SELECT $fields FROM tl_version WHERE editUrl IS NOT NULL$userFilterQuery ORDER BY tstamp DESC, pid, version DESC LIMIT $intOffset, 30"
+            "SELECT $fields FROM tl_version WHERE editUrl IS NOT NULL$userFilterQuery$tableFilterQuery ORDER BY tstamp DESC, pid, version DESC LIMIT $intOffset, 30"
         );
         $result = $stmt->executeQuery($userFilterValues);
 
         $versions = $this->prepareRows($result);
+
+        $columns = $this->eventDispatcher->dispatch(new VersionsListTableColumnsEvent(static::columns()))->getColumns();
+
+        if (!empty($configuration->getColumns())) {
+            $allowedColumns = $configuration->getColumns();
+            $columns = array_filter($columns, function ($key) use ($allowedColumns) {
+                return in_array($key, $allowedColumns);
+            }, ARRAY_FILTER_USE_KEY);
+        }
 
         $versions = $this->renderRows($versions, $columns);
 
@@ -219,14 +178,16 @@ class VersionsListGenerator
 
         foreach ($versions as $version) {
             $row = [];
+            $row['class'] = $version['class'];
 
             foreach ($cols as $key => $col) {
                 if (isset($col['renderCallback']) && \is_callable($col['renderCallback'])) {
-                    $row[$key] = \call_user_func($col['renderCallback'], $version);
+                    $row['cols'][$key] = \call_user_func($col['renderCallback'], $version);
                 } else {
-                    $row[$key] = '';
+                    $row['cols'][$key] = '';
                 }
             }
+
             $rows[] = $row;
         }
 
@@ -264,5 +225,50 @@ class VersionsListGenerator
         $pagination = new Pagination($versionCount, 30, 7, 'vp', new BackendTemplate('be_pagination'));
 
         return $pagination->generate();
+    }
+
+    public static function columns(): array
+    {
+        return [
+            'date' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['date'],
+                'renderCallback' => function (array $version) {
+                    return $version['date'];
+                },
+            ],
+            'user' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['user'],
+                'renderCallback' => function (array $version) {
+                    return $version['username'] ?: '-';
+                },
+            ],
+            'table' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['table'],
+                'renderCallback' => function (array $version) {
+                    return $version['shortTable'];
+                },
+            ],
+            'id' => [
+                'label' => 'ID',
+                'renderCallback' => function (array $version) {
+                    return $version['pid'];
+                },
+            ],
+            'description' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['description'],
+                'renderCallback' => function (array $version) {
+                    return $version['description'] ?: '-';
+                },
+            ],
+            'version' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['version'],
+                'renderCallback' => function (array $version) {
+                    return $version['active'] ? '<strong>'.$version['version'].'</strong>' : $version['version'];
+                },
+            ],
+            'actions' => [
+                'renderCallback' => [static::class, 'renderRowActions'],
+            ],
+        ];
     }
 }

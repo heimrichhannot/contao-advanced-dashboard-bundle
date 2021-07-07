@@ -3,6 +3,11 @@ services:
     autowire: true
     autoconfigure: true
     public: false
+    bind:
+      $bundleConfig: '%huh_advanced_dashboard%'
 
+  HeimrichHannot\AdvancedDashboardBundle\DataContainer\UserGroupContainer: ~
   HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao\ParseTemplateListener: ~
-  HeimrichHannot\AdvancedDashboardBundle\Generator\VersionsListGenerator: ~
+  HeimrichHannot\AdvancedDashboardBundle\VersionList\:
+    resource: '../../VersionList/*'
+    exclude: '../../VersionList/VersionListConfiguration.php'

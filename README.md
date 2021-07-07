@@ -6,3 +6,8 @@ A bundle to add more flexibility to the contao backend dashboard.
 
 ## Features
 - customize versions list
+
+## Developers
+
+### Customize backend dashboard versions
+

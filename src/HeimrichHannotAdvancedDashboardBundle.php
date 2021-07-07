@@ -8,8 +8,13 @@
 
 namespace HeimrichHannot\AdvancedDashboardBundle;
 
+use HeimrichHannot\AdvancedDashboardBundle\DependencyInjection\HeimrichHannotAdvancedDashboardExtension;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 class HeimrichHannotAdvancedDashboardBundle extends Bundle
 {
+    public function getContainerExtension()
+    {
+        return new HeimrichHannotAdvancedDashboardExtension();
+    }
 }

@@ -32,8 +32,8 @@
             {% endif %}
             <tbody>
             {% for version in versions %}
-                <tr class="{{ versions.class|default }} click2edit hover-row">
-                    {% for column in version %}
+                <tr class="{{ version.class|default }} click2edit hover-row">
+                    {% for column in version.cols %}
                         <td>{{ column|raw }}</td>
                     {% endfor %}
                 </tr>
