@@ -4,7 +4,9 @@ A bundle to add more flexibility to the contao backend dashboard.
 
 ## Features
 - replaces the contao dashboard with a more customizable one
-- customize the dashboard versions list to your need, like changing the visibility of user and tables or add custom rows
+- customize the dashboard versions list to your need, like changing the visibility of user and tables or add custom columns
+
+![](docs/img/screenshot_versions.png)
 
 ## Usage
 

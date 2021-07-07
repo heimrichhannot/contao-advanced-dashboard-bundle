@@ -38,7 +38,7 @@ class VersionListConfigurationFactory
         $tables = null;
         $columns = null;
         $userLevel = VersionListConfiguration::USER_ACCESS_LEVEL_SELF;
-        $allowedUsers = $this->security->getUser()->id;
+        $allowedUsers = (int) $this->security->getUser()->id;
         $userConfigs = [];
 
         if (!empty($configs)) {

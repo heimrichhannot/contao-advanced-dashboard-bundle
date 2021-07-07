@@ -56,7 +56,7 @@ class VersionListGenerator
         } elseif (0 === $configuration->getAllowedUsers()) {
             $userFilterQuery = '';
         } else {
-            $userFilterQuery = 'AND userid=?';
+            $userFilterQuery = ' AND userid=?';
             $userFilterValues[] = $configuration->getAllowedUsers();
         }
 

@@ -34,11 +34,17 @@ class VersionListTableColumnsEvent extends Event
     /**
      * Set a column.
      * If the column already exists, it gets overridden.
-     * If the column not exist, it's added to the end of the column list.
+     * If the column not exist, it's added to the end of the column list or at a given position.
+     *
+     * @param string|int|null $position
      */
-    public function setColumn(string $key, array $value = []): void
+    public function setColumn(string $key, array $value = [], $position = null): void
     {
-        $this->columns[$key] = $value;
+        if (!$this->hasColumn($key) && null !== $position) {
+            $this->array_insert($this->columns, $position, [$key => $value]);
+        } else {
+            $this->columns[$key] = $value;
+        }
     }
 
     /**
@@ -69,5 +75,21 @@ class VersionListTableColumnsEvent extends Event
         $this->columns = $columns;
 
         return $this;
+    }
+
+    /**
+     * @param int|string $position
+     * @param mixed      $insert
+     */
+    private function array_insert(array &$array, $position, array $insert)
+    {
+        if (!\is_int($position)) {
+            $position = array_search($position, array_keys($array)) + 1;
+        }
+        $array = array_merge(
+            \array_slice($array, 0, $position),
+            $insert,
+            \array_slice($array, $position)
+        );
     }
 }
