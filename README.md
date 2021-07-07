@@ -6,7 +6,7 @@ A bundle to add more flexibility to the contao backend dashboard.
 - replaces the contao dashboard with a more customizable one
 - customize the dashboard versions list to your need, like changing the visibility of user and tables or add custom columns
 
-![](docs/img/screenshot_versions.png)
+![](docs/img/screenshot.png)
 
 ## Usage
 
@@ -49,6 +49,44 @@ huh_advanced_dashboard:
 Additional notes:
 - If no configuration is defined, or a user has no configuration added, a default configuration is used. You can customize the default configuration by creating a configuation with the name default.
 - Restriction are not applied to admin user.
+
+### Add custom content/sections to backend template
+
+The dashboard template comes with this bundle contains some customization options. You can add custom section or content and disable existing sections.
+
+Following postions are available (as template variables):
+- positionTop
+- positionBeforeShortcuts
+- positionBeforeVersions
+- positonBottom
+
+Skip existing sections by settings these variables to false (available as template variables:
+- showMessages
+- showShortcuts
+- showVersions
+
+To set these template variables, you can use the contao [parseTemplate](https://docs.contao.org/dev/reference/hooks/parseTemplate/) hook or the `BeforeParseTwigTemplateEvent` and `BeforeRenderTwigTemplateEvent` events of [Twig Support Bundle](https://github.com/heimrichhannot/contao-twig-support-bundle). For the twig support bundle events, the template name is `be_advanced_dashboard`.
+
+If you use the parseTemplate hook to add your custom content, keep in mind it should habe a priority higher than `-10`!
+
+```php
+/**
+ * @Hook("parseTemplate")
+ */
+class ParseTemplateListener 
+{
+    public function __invoke(Template $template): void 
+    {
+        if ('be_welcome' === $template->getName()) {
+            $template->positionTop = '<div id="tl_custom_welcome">
+            <h2 style="margin-top: 18px;">Welcome</h2>
+            <p style="margin-top: 6px;">This could be your message!</p>
+        </div>';
+            $template->showShortcuts = false;
+        }
+    }
+}
+```
 
 ## Developers
 

@@ -1,50 +1,64 @@
 
 <div id="tl_soverview">
 
-    {% block messages %}
-    <div id="tl_messages">
-        <h2>{{ systemMessages|default('Alerts') }}</h2>
-        {{ messages|default|raw }}
-        <p>{{ loginMsg|default|raw }}</p>
-    </div>
-    {% endblock %}
+    {{ positionTop|default|raw }}
 
-    {% block shortcuts %}
-    <div id="tl_shortcuts">
-        <h2>{{ shortcuts|default }}</h2>
-        <p>{{ shortcutsLink|default|raw }}</p>
-    </div>
-    {% endblock %}
+    {% if showMessages is not defined or showMessages == true %}
+        {% block messages %}
+        <div id="tl_messages">
+            <h2>{{ systemMessages|default('Alerts') }}</h2>
+            {{ messages|default|raw }}
+            <p>{{ loginMsg|default|raw }}</p>
+        </div>
+        {% endblock %}
+    {% endif %}
 
-    {% block versions %}
-    <div id="tl_versions">
-        <h2>{{ 'MSC.latestChanges'|trans({}, 'contao_default') }}</h2>
-        {% if versions|default %}
-        <table class="tl_listing">
-            {% if columns|default %}
-                <thead>
-                <tr>
-                {% for column in columns %}
-                    <th>{{ column.label|default }}</th>
-                {% endfor %}
-                </tr>
-                </thead>
-            {% endif %}
-            <tbody>
-            {% for version in versions %}
-                <tr class="{{ version.class|default }} click2edit hover-row">
-                    {% for column in version.cols %}
-                        <td>{{ column|raw }}</td>
+    {{ positionBeforeShortcuts|default|raw }}
+
+    {% if showShortcuts is not defined or showShortcuts == true %}
+        {% block shortcuts %}
+        <div id="tl_shortcuts">
+            <h2>{{ shortcuts|default }}</h2>
+            <p>{{ shortcutsLink|default|raw }}</p>
+        </div>
+        {% endblock %}
+    {% endif %}
+
+    {{ positionBeforeVersions|default|raw }}
+
+    {% if showVersions is not defined or showVersions == true %}
+        {% block versions %}
+        <div id="tl_versions">
+            <h2>{{ 'MSC.latestChanges'|trans({}, 'contao_default') }}</h2>
+            {% if versions|default %}
+            <table class="tl_listing">
+                {% if columns|default %}
+                    <thead>
+                    <tr>
+                    {% for column in columns %}
+                        <th>{{ column.label|default }}</th>
                     {% endfor %}
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {{ pagination|default|raw }}
-        {% else %}
-            {{ 'MSC.noVersions'|trans({}, 'contao_default') }}
-        {% endif %}
-    </div>
-    {% endblock %}
+                    </tr>
+                    </thead>
+                {% endif %}
+                <tbody>
+                {% for version in versions %}
+                    <tr class="{{ version.class|default }} click2edit hover-row">
+                        {% for column in version.cols %}
+                            <td>{{ column|raw }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {{ pagination|default|raw }}
+            {% else %}
+                {{ 'MSC.noVersions'|trans({}, 'contao_default') }}
+            {% endif %}
+        </div>
+        {% endblock %}
+    {% endif %}
+
+    {{ positonBottom|default|raw }}
 
 </div>

@@ -13,13 +13,17 @@ use Contao\ManagerPlugin\Bundle\BundlePluginInterface;
 use Contao\ManagerPlugin\Bundle\Config\BundleConfig;
 use Contao\ManagerPlugin\Bundle\Parser\ParserInterface;
 use HeimrichHannot\AdvancedDashboardBundle\HeimrichHannotAdvancedDashboardBundle;
+use HeimrichHannot\TwigSupportBundle\HeimrichHannotTwigSupportBundle;
 
 class Plugin implements BundlePluginInterface
 {
     public function getBundles(ParserInterface $parser)
     {
         return [
-            BundleConfig::create(HeimrichHannotAdvancedDashboardBundle::class)->setLoadAfter([ContaoCoreBundle::class]),
+            BundleConfig::create(HeimrichHannotAdvancedDashboardBundle::class)->setLoadAfter([
+                ContaoCoreBundle::class,
+                HeimrichHannotTwigSupportBundle::class,
+            ]),
         ];
     }
 }
