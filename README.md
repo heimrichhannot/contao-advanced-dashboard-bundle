@@ -66,10 +66,15 @@ class AdvancedDashboardEventSubscriber implements EventSubscriberInterface {
         ];
     }
     
+    // Add additional database columns that should be fetched (or modify existing values)
     public function onVersionListDatabaseColumnsEvent(VersionListDatabaseColumnsEvent $event) {
         $event->addColumn('custom_information');
     }
     
+    // Add additional columns to the version list.
+    // `label` is the table column headline
+    // `renderCallback` is the method that renders the content of the current column.
+    //                  Gets the database values for the current row as parameter.
     public function onVersionListTableColumnsEvent(VersionListTableColumnsEvent $event) {
         $event->setColumn('custom_colum', [
             'label' => 'Custom information', 
