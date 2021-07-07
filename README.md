@@ -3,8 +3,8 @@
 A bundle to add more flexibility to the contao backend dashboard.
 
 ## Features
-- customizable dashboard version list
-- replaces dashboard be_welcome template with a better customizable twig template
+- replaces the contao dashboard with a more customizable one
+- customize the dashboard versions list to your need, like changing the visibility of user and tables or add custom rows
 
 ## Usage
 
@@ -16,9 +16,9 @@ A bundle to add more flexibility to the contao backend dashboard.
 
 1. Update database
 
-### Create a version configuration
+### Customize dashboard versions list.
 
-A main feature of this bundle is the customization of the versions log in the contao dashboard. 
+A main feature of this bundle is the customization of the versions log in the contao dashboard. After installing this bundle, you'll find, that there is no difference to the original contao dashboard, as the default configurations are the same. But now you can create configurations thats specify which logs are displayed to a user filtered by user or table. You can also specify which columns are displayed. 
 
 1. Setup a versions_right configuration in your projekt config, typically `config/config.yml`
 
@@ -43,6 +43,10 @@ huh_advanced_dashboard:
 1. Clear your cache if not in dev mode
 
 1. Apply the created right in user or user group settings to a user or user group.
+
+Additional notes:
+- If no configuration is defined, or a user has no configuration added, a default configuration is used. You can customize the default configuration by creating a configuation with the name default.
+- Restriction are not applied to admin user.
 
 ## Developers
 
