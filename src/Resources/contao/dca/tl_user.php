@@ -8,13 +8,15 @@
 
 use Contao\CoreBundle\DataContainer\PaletteManipulator;
 
-$dca = &$GLOBALS['TL_DCA']['tl_user_group'];
+$dca = &$GLOBALS['TL_DCA']['tl_user'];
 
 PaletteManipulator::create()
     ->addLegend('huhAdvDash_legend', 'forms_legend', PaletteManipulator::POSITION_AFTER, true)
 //    ->addField('huhAdvDash_visibleUserGroups', 'huhAdvDash_legend', PaletteManipulator::POSITION_APPEND)
     ->addField('huhAdvDash_versionsRights', 'huhAdvDash_legend', PaletteManipulator::POSITION_APPEND)
-    ->applyToPalette('default', 'tl_user_group');
+    ->applyToPalette('extend', 'tl_user')
+    ->applyToPalette('custom', 'tl_user')
+;
 
 //$dca['fields']['huhAdvDash_visibleUserGroups'] = [
 //    'exclude'    => true,

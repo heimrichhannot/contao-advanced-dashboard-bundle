@@ -10,13 +10,13 @@ namespace HeimrichHannot\AdvancedDashboardBundle\Event;
 
 use Symfony\Contracts\EventDispatcher\Event;
 
-class VersionsListTableColumnsEvent extends Event
+class VersionListTableColumnsEvent extends Event
 {
     /** @var array */
     private $columns;
 
     /**
-     * VersionsListTableColumnsEvent constructor.
+     * VersionListTableColumnsEvent constructor.
      */
     public function __construct(array $columns)
     {

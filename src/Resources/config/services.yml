@@ -8,6 +8,7 @@ services:
 
   HeimrichHannot\AdvancedDashboardBundle\DataContainer\UserGroupContainer: ~
   HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao\ParseTemplateListener: ~
+
   HeimrichHannot\AdvancedDashboardBundle\VersionList\:
     resource: '../../VersionList/*'
     exclude: '../../VersionList/VersionListConfiguration.php'

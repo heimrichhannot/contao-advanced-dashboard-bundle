@@ -22,6 +22,7 @@ class UserGroupContainer
     }
 
     /**
+     * @Callback(table="tl_user", target="fields.huhAdvDash_versionsRights.options")
      * @Callback(table="tl_user_group", target="fields.huhAdvDash_versionsRights.options")
      */
     public function onVersionsRightsOptionsCallback(?DataContainer $dc): array

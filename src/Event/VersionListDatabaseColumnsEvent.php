@@ -10,7 +10,7 @@ namespace HeimrichHannot\AdvancedDashboardBundle\Event;
 
 use Symfony\Contracts\EventDispatcher\Event;
 
-class VersionsListDatabaseColumnsEvent extends Event
+class VersionListDatabaseColumnsEvent extends Event
 {
     private $columns = [];
 

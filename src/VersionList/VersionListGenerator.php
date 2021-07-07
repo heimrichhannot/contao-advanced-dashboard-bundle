@@ -18,8 +18,8 @@ use Contao\Pagination;
 use Contao\StringUtil;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
-use HeimrichHannot\AdvancedDashboardBundle\Event\VersionsListDatabaseColumnsEvent;
-use HeimrichHannot\AdvancedDashboardBundle\Event\VersionsListTableColumnsEvent;
+use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListDatabaseColumnsEvent;
+use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListTableColumnsEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Routing\RouterInterface;
 
@@ -61,6 +61,7 @@ class VersionListGenerator
         }
 
         $tableFilterQuery = '';
+
         if (!empty($configuration->getTables())) {
             $tableFilterQuery = ' AND fromTable IN (\''.implode("','", $configuration->getTables()).'\')';
         }
@@ -80,8 +81,8 @@ class VersionListGenerator
 
         $defaultDatabaseColumns = ['pid', 'tstamp', 'version', 'fromTable', 'username', 'userid', 'description', 'editUrl', 'active'];
 
-        /** @var VersionsListDatabaseColumnsEvent $event */
-        $event = $this->eventDispatcher->dispatch(new VersionsListDatabaseColumnsEvent($defaultDatabaseColumns));
+        /** @var VersionListDatabaseColumnsEvent $event */
+        $event = $this->eventDispatcher->dispatch(new VersionListDatabaseColumnsEvent($defaultDatabaseColumns));
 
         $fields = implode(', ', $event->getColumns());
 
@@ -93,18 +94,63 @@ class VersionListGenerator
 
         $versions = $this->prepareRows($result);
 
-        $columns = $this->eventDispatcher->dispatch(new VersionsListTableColumnsEvent(static::columns()))->getColumns();
+        $columns = $this->eventDispatcher->dispatch(new VersionListTableColumnsEvent(static::columns()))->getColumns();
 
         if (!empty($configuration->getColumns())) {
             $allowedColumns = $configuration->getColumns();
             $columns = array_filter($columns, function ($key) use ($allowedColumns) {
-                return in_array($key, $allowedColumns);
+                return \in_array($key, $allowedColumns);
             }, ARRAY_FILTER_USE_KEY);
         }
 
         $versions = $this->renderRows($versions, $columns);
 
         return ['versions' => $versions, 'columns' => $columns, 'pagination' => $this->renderPagination($versionCount)];
+    }
+
+    public static function columns(): array
+    {
+        return [
+            'date' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['date'],
+                'renderCallback' => function (array $version) {
+                    return $version['date'];
+                },
+            ],
+            'user' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['user'],
+                'renderCallback' => function (array $version) {
+                    return $version['username'] ?: '-';
+                },
+            ],
+            'table' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['table'],
+                'renderCallback' => function (array $version) {
+                    return $version['shortTable'];
+                },
+            ],
+            'id' => [
+                'label' => 'ID',
+                'renderCallback' => function (array $version) {
+                    return $version['pid'];
+                },
+            ],
+            'description' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['description'],
+                'renderCallback' => function (array $version) {
+                    return $version['description'] ?: '-';
+                },
+            ],
+            'version' => [
+                'label' => &$GLOBALS['TL_LANG']['MSC']['version'],
+                'renderCallback' => function (array $version) {
+                    return $version['active'] ? '<strong>'.$version['version'].'</strong>' : $version['version'];
+                },
+            ],
+            'actions' => [
+                'renderCallback' => [static::class, 'renderRowActions'],
+            ],
+        ];
     }
 
     /**
@@ -225,50 +271,5 @@ class VersionListGenerator
         $pagination = new Pagination($versionCount, 30, 7, 'vp', new BackendTemplate('be_pagination'));
 
         return $pagination->generate();
-    }
-
-    public static function columns(): array
-    {
-        return [
-            'date' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['date'],
-                'renderCallback' => function (array $version) {
-                    return $version['date'];
-                },
-            ],
-            'user' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['user'],
-                'renderCallback' => function (array $version) {
-                    return $version['username'] ?: '-';
-                },
-            ],
-            'table' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['table'],
-                'renderCallback' => function (array $version) {
-                    return $version['shortTable'];
-                },
-            ],
-            'id' => [
-                'label' => 'ID',
-                'renderCallback' => function (array $version) {
-                    return $version['pid'];
-                },
-            ],
-            'description' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['description'],
-                'renderCallback' => function (array $version) {
-                    return $version['description'] ?: '-';
-                },
-            ],
-            'version' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['version'],
-                'renderCallback' => function (array $version) {
-                    return $version['active'] ? '<strong>'.$version['version'].'</strong>' : $version['version'];
-                },
-            ],
-            'actions' => [
-                'renderCallback' => [static::class, 'renderRowActions'],
-            ],
-        ];
     }
 }
