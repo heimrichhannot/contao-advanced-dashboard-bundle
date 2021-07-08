@@ -24,23 +24,23 @@ A main feature of this bundle is the customization of the versions log in the co
 
 1. Setup a versions_right configuration in your projekt config, typically `config/config.yml`
 
-```yaml
-huh_advanced_dashboard:
-  versions_rights:
-    # All user changes visible for table tl_news.
-    editor_news:
-      user_access_level: all
-      columns:
-        - date
-        - user
-        - table
-        - id
-        - description
-        - version
-        - actions
-      tables:
-        - tl_news
-```
+   ```yaml
+   huh_advanced_dashboard:
+     versions_rights:
+       # All user changes visible for table tl_news.
+       editor_news:
+         user_access_level: all
+         columns:
+           - date
+           - user
+           - table
+           - id
+           - description
+           - version
+           - actions
+         tables:
+           - tl_news
+   ```
 
 1. Clear your cache if not in dev mode
 
@@ -67,7 +67,7 @@ Skip existing sections by settings these variables to false (available as templa
 
 To set these template variables, you can use the contao [parseTemplate](https://docs.contao.org/dev/reference/hooks/parseTemplate/) hook or the `BeforeParseTwigTemplateEvent` and `BeforeRenderTwigTemplateEvent` events of [Twig Support Bundle](https://github.com/heimrichhannot/contao-twig-support-bundle). For the twig support bundle events, the template name is `be_advanced_dashboard`.
 
-If you use the parseTemplate hook to add your custom content, keep in mind it should habe a priority higher than `-10`!
+If you use the parseTemplate hook to add your custom content, keep in mind it should have a priority higher than `-10`!
 
 ```php
 /**
@@ -92,9 +92,9 @@ class ParseTemplateListener
 
 ### Add new columns or change the appearance of existing columns
 
-There are two events of add custom columns to the versions log or change existing columns. 
+There are two events to add custom columns to the versions log or change existing columns. 
 
-Maybe you have an extension that expands the version table and adds more information to a version log and want to output that information in the version log. We recommend creating a Subscriber for `VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent`.
+Maybe you have an extension that expands the version table and adds more information to a version database log entry and want to output that information in the dashboard version log. We recommend creating a Subscriber for `VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent`.
 
 ```php
 use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListDatabaseColumnsEvent;
