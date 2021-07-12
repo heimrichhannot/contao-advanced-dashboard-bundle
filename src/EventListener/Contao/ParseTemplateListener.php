@@ -48,7 +48,7 @@ class ParseTemplateListener
             $template->columns = $columns;
 
             if (!$template->positonBottom) {
-                $template->positonBottom = '<div id="tl_credits"><p style="float:right;font-size:0.9em;padding-top:18px;"><a href="https://github.com/heimrichhannot/contao-advanced-dashboard-bundle">Advanced Dashboard</a> by <a href="https://www.heimrich-hannot.de" style="font-style: italic;">Heimrich+Hannot</a></p><div class="clear"></div></div>';
+                $template->positonBottom = '<div id="tl_credits"><p style="float:right;font-size:0.9em;padding-top:18px;"><a href="https://github.com/heimrichhannot/contao-advanced-dashboard-bundle" target="_blank">Advanced Dashboard</a> by <a href="https://www.heimrich-hannot.de" style="font-style: italic;" target="_blank">Heimrich+Hannot</a></p><div class="clear"></div></div>';
             }
             $this->renderListener->prepareContaoTemplate($template);
         }
