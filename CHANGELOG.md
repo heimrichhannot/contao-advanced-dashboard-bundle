@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased] - 2021-07-12
 - make credit links target blank
+- fixed wrong license file
 
 ## [0.1.1] - 2021-07-07
 - added postions and flags to make dashboard template more customizable
