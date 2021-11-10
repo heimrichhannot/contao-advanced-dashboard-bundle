@@ -53,7 +53,7 @@
             </table>
             {{ pagination|default|raw }}
             {% else %}
-                {{ 'MSC.noVersions'|trans({}, 'contao_default') }}
+                <p>{{ 'MSC.noVersions'|trans({}, 'contao_default') }}</p>
             {% endif %}
         </div>
         {% endblock %}
