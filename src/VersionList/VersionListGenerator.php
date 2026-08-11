@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -11,227 +13,244 @@ namespace HeimrichHannot\AdvancedDashboardBundle\VersionList;
 use Contao\BackendTemplate;
 use Contao\BackendUser;
 use Contao\Config;
+use Contao\CoreBundle\Csrf\ContaoCsrfTokenManager;
+use Contao\CoreBundle\Security\ContaoCorePermissions;
 use Contao\FilesModel;
 use Contao\Image;
-use Contao\Input;
 use Contao\Pagination;
 use Contao\StringUtil;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Result;
 use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListDatabaseColumnsEvent;
 use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListTableColumnsEvent;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class VersionListGenerator
 {
-    protected $eventDispatcher;
-    /**
-     * @var Connection
-     */
-    protected $connection;
-    /**
-     * @var RouterInterface
-     */
-    protected $router;
+    public const DEFAULT_COLUMNS = [
+        'date',
+        'user',
+        'table',
+        'id',
+        'description',
+        'version',
+        'actions',
+    ];
 
-    public function __construct(EventDispatcherInterface $eventDispatcher, Connection $connection, RouterInterface $router)
-    {
-        $this->eventDispatcher = $eventDispatcher;
-        $this->connection = $connection;
-        $this->router = $router;
+    private const ITEMS_PER_PAGE = 30;
+
+    public function __construct(
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly Connection $connection,
+        private readonly RouterInterface $router,
+        private readonly RequestStack $requestStack,
+        private readonly ContaoCsrfTokenManager $csrfTokenManager,
+        private readonly Security $security,
+        private readonly TranslatorInterface $translator,
+    ) {
     }
 
+    /**
+     * @return array{versions: list<array{class: string, cols: array<string, string>}>, columns: array<string, array>, pagination: string}
+     */
     public function generate(VersionListConfiguration $configuration): array
     {
-        $userFilterValues = [];
+        [$filter, $parameters, $types] = $this->createFilter($configuration);
 
-        if (\is_array($configuration->getAllowedUsers())) {
-            $user = array_filter($configuration->getAllowedUsers(), 'is_int');
+        $versionCount = (int) $this->connection
+            ->executeQuery('SELECT COUNT(*) FROM tl_version WHERE '.$filter, $parameters, $types)
+            ->fetchOne()
+        ;
 
-            if (empty($user)) {
-                throw new \InvalidArgumentException('User must be either integer or an array of integers.');
-            }
-            $userFilterQuery = ' AND userid IN ('.implode(', ', $user).')';
-        } elseif (0 === $configuration->getAllowedUsers()) {
-            $userFilterQuery = '';
-        } else {
-            $userFilterQuery = ' AND userid=?';
-            $userFilterValues[] = $configuration->getAllowedUsers();
-        }
-
-        $tableFilterQuery = '';
-
-        if (!empty($configuration->getTables())) {
-            $tableFilterQuery = ' AND fromTable IN (\''.implode("','", $configuration->getTables()).'\')';
-        }
-
-        $stmt = $this->connection->prepare('SELECT COUNT(*) AS count FROM tl_version WHERE editUrl IS NOT NULL'.$userFilterQuery.$tableFilterQuery);
-        $result = $stmt->executeQuery($userFilterValues);
-        $versionCount = $result->fetchOne();
-
-        $intLast = ceil($versionCount / 30);
-        $intPage = Input::get('vp') ?? 1;
-        $intOffset = ($intPage - 1) * 30;
-
-        // Validate the page number
-        if ($intPage < 1 || ($intLast > 0 && $intPage > $intLast)) {
-            header('HTTP/1.1 404 Not Found');
-        }
+        $lastPage = max(1, (int) ceil($versionCount / self::ITEMS_PER_PAGE));
+        $requestedPage = $this->requestStack->getCurrentRequest()?->query->getInt('vp', 1) ?? 1;
+        $page = min(max(1, $requestedPage), $lastPage);
+        $offset = ($page - 1) * self::ITEMS_PER_PAGE;
 
         $defaultDatabaseColumns = ['pid', 'tstamp', 'version', 'fromTable', 'username', 'userid', 'description', 'editUrl', 'active'];
+        $databaseColumnsEvent = $this->eventDispatcher->dispatch(new VersionListDatabaseColumnsEvent($defaultDatabaseColumns));
+        $databaseColumns = $databaseColumnsEvent->getColumns();
 
-        /** @var VersionListDatabaseColumnsEvent $event */
-        $event = $this->eventDispatcher->dispatch(new VersionListDatabaseColumnsEvent($defaultDatabaseColumns));
-
-        $fields = implode(', ', $event->getColumns());
-
-        // Get the versions
-        $stmt = $this->connection->prepare(
-            "SELECT $fields FROM tl_version WHERE editUrl IS NOT NULL$userFilterQuery$tableFilterQuery ORDER BY tstamp DESC, pid, version DESC LIMIT $intOffset, 30"
-        );
-        $result = $stmt->executeQuery($userFilterValues);
-
-        $versions = $this->prepareRows($result);
-
-        $columns = $this->eventDispatcher->dispatch(new VersionListTableColumnsEvent(static::columns()))->getColumns();
-
-        if (!empty($configuration->getColumns())) {
-            $allowedColumns = $configuration->getColumns();
-            $columns = array_filter($columns, function ($key) use ($allowedColumns) {
-                return \in_array($key, $allowedColumns);
-            }, ARRAY_FILTER_USE_KEY);
+        if ([] === $databaseColumns) {
+            throw new \LogicException('At least one version database column must be selected.');
         }
 
-        $versions = $this->renderRows($versions, $columns);
+        $fields = implode(', ', array_map(fn (string $column): string => $this->connection->quoteIdentifier($column), $databaseColumns));
+        $sql = sprintf(
+            'SELECT %s FROM tl_version WHERE %s ORDER BY tstamp DESC, pid, version DESC LIMIT %d, %d',
+            $fields,
+            $filter,
+            $offset,
+            self::ITEMS_PER_PAGE,
+        );
 
-        return ['versions' => $versions, 'columns' => $columns, 'pagination' => $this->renderPagination($versionCount)];
-    }
+        $versions = $this->prepareRows($this->connection->executeQuery($sql, $parameters, $types));
+        $columns = $this->eventDispatcher->dispatch(new VersionListTableColumnsEvent($this->createDefaultColumns()))->getColumns();
 
-    public static function columns(): array
-    {
+        if ([] !== $configuration->getColumns()) {
+            $allowedColumns = $configuration->getColumns();
+            $columns = array_filter(
+                $columns,
+                static fn (string $key): bool => \in_array($key, $allowedColumns, true),
+                ARRAY_FILTER_USE_KEY,
+            );
+        }
+
         return [
-            'date' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['date'],
-                'renderCallback' => function (array $version) {
-                    return $version['date'];
-                },
-            ],
-            'user' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['user'],
-                'renderCallback' => function (array $version) {
-                    return $version['username'] ?: '-';
-                },
-            ],
-            'table' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['table'],
-                'renderCallback' => function (array $version) {
-                    return $version['shortTable'];
-                },
-            ],
-            'id' => [
-                'label' => 'ID',
-                'renderCallback' => function (array $version) {
-                    return $version['pid'];
-                },
-            ],
-            'description' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['description'],
-                'renderCallback' => function (array $version) {
-                    return $version['description'] ?: '-';
-                },
-            ],
-            'version' => [
-                'label' => &$GLOBALS['TL_LANG']['MSC']['version'],
-                'renderCallback' => function (array $version) {
-                    return $version['active'] ? '<strong>'.$version['version'].'</strong>' : $version['version'];
-                },
-            ],
-            'actions' => [
-                'renderCallback' => [static::class, 'renderRowActions'],
-            ],
+            'versions' => $this->renderRows($versions, $columns),
+            'columns' => $columns,
+            'pagination' => $this->renderPagination($versionCount),
         ];
     }
 
     /**
-     * @throws \Doctrine\DBAL\Driver\Exception
+     * @return array{0: string, 1: array<string, mixed>, 2: array<string, mixed>}
      */
-    protected function prepareRows(Result $result): array
+    private function createFilter(VersionListConfiguration $configuration): array
     {
-        $objUser = BackendUser::getInstance();
+        $filters = ['editUrl IS NOT NULL'];
+        $parameters = [];
+        $types = [];
+        $allowedUsers = $configuration->getAllowedUsers();
+
+        if (\is_array($allowedUsers)) {
+            $filters[] = 'userid IN (:user_ids)';
+            $parameters['user_ids'] = $allowedUsers;
+            $types['user_ids'] = ArrayParameterType::INTEGER;
+        } elseif (0 !== $allowedUsers) {
+            $filters[] = 'userid = :user_id';
+            $parameters['user_id'] = $allowedUsers;
+        }
+
+        if ([] !== $configuration->getTables()) {
+            $filters[] = 'fromTable IN (:tables)';
+            $parameters['tables'] = $configuration->getTables();
+            $types['tables'] = ArrayParameterType::STRING;
+        }
+
+        return [implode(' AND ', $filters), $parameters, $types];
+    }
+
+    /** @return array<string, array{label?: string, class?: string, renderCallback: callable(array): string}> */
+    private function createDefaultColumns(): array
+    {
+        return [
+            'date' => [
+                'label' => $this->translator->trans('MSC.date', [], 'contao_default'),
+                'renderCallback' => static fn (array $version): string => $version['date'],
+            ],
+            'user' => [
+                'label' => $this->translator->trans('MSC.user', [], 'contao_default'),
+                'renderCallback' => static fn (array $version): string => $version['username'] ?: '-',
+            ],
+            'table' => [
+                'label' => $this->translator->trans('MSC.table', [], 'contao_default'),
+                'renderCallback' => static fn (array $version): string => $version['shortTable'],
+            ],
+            'id' => [
+                'label' => 'ID',
+                'renderCallback' => static fn (array $version): string => (string) $version['pid'],
+            ],
+            'description' => [
+                'label' => $this->translator->trans('MSC.description', [], 'contao_default'),
+                'renderCallback' => static fn (array $version): string => $version['description'] ?: '-',
+            ],
+            'version' => [
+                'label' => $this->translator->trans('MSC.version', [], 'contao_default'),
+                'renderCallback' => static fn (array $version): string => $version['active'] ? '<strong>'.$version['version'].'</strong>' : (string) $version['version'],
+            ],
+            'actions' => [
+                'class' => 'tl_right_nowrap',
+                'renderCallback' => fn (array $version): string => $this->renderRowActions($version),
+            ],
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function prepareRows(Result $result): array
+    {
+        $user = $this->security->getUser();
+
+        if (!$user instanceof BackendUser) {
+            throw new \LogicException('The advanced dashboard can only be rendered for a Contao back end user.');
+        }
+
         $versions = [];
 
         while ($rawRow = $result->fetchAssociative()) {
-            // Hide profile changes if the user does not have access to the "user" module (see #1309)
-            if (!$objUser->isAdmin && 'tl_user' == $rawRow['fromTable'] && !$objUser->hasAccess('user', 'modules')) {
+            if (!$user->isAdmin && 'tl_user' === $rawRow['fromTable'] && !$this->security->isGranted(ContaoCorePermissions::USER_CAN_ACCESS_MODULE, 'user')) {
                 continue;
             }
 
-            $arrRow = $rawRow;
+            $row = $rawRow;
+            $row['from'] = max(((int) $rawRow['version']) - 1, 1);
+            $row['to'] = (int) $rawRow['version'];
+            $row['date'] = date(Config::get('datimFormat'), (int) $rawRow['tstamp']);
+            $row['description'] = StringUtil::substr((string) $row['description'], 32);
+            $row['shortTable'] = StringUtil::substr((string) $row['fromTable'], 18);
+            $row['raw'] = $rawRow;
 
-            // Add some parameters
-            $arrRow['from'] = max(($rawRow['version'] - 1), 1); // see #4828
-            $arrRow['to'] = $rawRow['version'];
-            $arrRow['date'] = date(Config::get('datimFormat'), $rawRow['tstamp']);
-            $arrRow['description'] = StringUtil::substr($arrRow['description'], 32);
-            $arrRow['shortTable'] = StringUtil::substr($arrRow['fromTable'], 18); // see #5769
-            $arrRow['raw'] = $rawRow;
-
-            if (isset($arrRow['editUrl'])) {
-                // Adjust the edit URL of files in case they have been renamed (see #671)
-                if ('tl_files' == $arrRow['fromTable'] && ($filesModel = FilesModel::findByPk($arrRow['pid']))) {
-                    $arrRow['editUrl'] = preg_replace('/id=[^&]+/', 'id='.$filesModel->path, $arrRow['editUrl']);
+            if (isset($row['editUrl'])) {
+                if ('tl_files' === $row['fromTable'] && ($filesModel = FilesModel::findById($row['pid']))) {
+                    $row['editUrl'] = preg_replace('/id=[^&]+/', 'id='.$filesModel->path, $row['editUrl']);
                 }
 
-                $arrRow['editUrl'] = preg_replace(['/&(amp;)?popup=1/', '/&(amp;)?rt=[^&]+/'], ['', '&amp;rt='.REQUEST_TOKEN], ampersand($arrRow['editUrl']));
+                $requestToken = self::escape($this->csrfTokenManager->getDefaultTokenValue());
+                $editUrl = preg_replace(
+                    ['/&(amp;)?popup=1/', '/&(amp;)?rt=[^&]+/'],
+                    ['', '&amp;rt='.$requestToken],
+                    StringUtil::ampersand(ltrim((string) $row['editUrl'], '/')),
+                );
+                $basePath = $this->requestStack->getCurrentRequest()?->getBasePath() ?? '';
+                $row['editUrl'] = rtrim($basePath, '/').'/'.$editUrl;
             }
 
-            $versions[] = $arrRow;
+            $versions[] = $row;
         }
 
-        $intCount = -1;
-        $versions = array_values($versions);
-
-        // Add the "even" and "odd" classes
-        foreach ($versions as $k => $v) {
-            $versions[$k]['class'] = (0 == ++$intCount % 2) ? 'even' : 'odd';
+        foreach ($versions as $index => $version) {
+            $versions[$index]['class'] = 0 === $index % 2 ? 'even' : 'odd';
 
             try {
-                // Mark deleted versions (see #4336)
-                $stmt = $this->connection->prepare('SELECT COUNT(*) AS count FROM '.$v['fromTable'].' WHERE id=?');
-                $deletedCount = $stmt->executeStatement([$v['pid']]);
+                $table = $this->connection->quoteIdentifier((string) $version['fromTable']);
+                $deletedCount = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM '.$table.' WHERE id = ?', [$version['pid']]);
+                $versions[$index]['deleted'] = $deletedCount < 1;
+            } catch (Exception) {
+                unset($versions[$index]);
 
-                $versions[$k]['deleted'] = ($deletedCount < 1);
-            } catch (\Exception $e) {
-                // Probably a disabled module
-                --$intCount;
-                unset($versions[$k]);
+                continue;
             }
 
-            // Skip deleted files (see #8480)
-            if ('tl_files' == $v['fromTable'] && $versions[$k]['deleted']) {
-                --$intCount;
-                unset($versions[$k]);
+            if ('tl_files' === $version['fromTable'] && $versions[$index]['deleted']) {
+                unset($versions[$index]);
             }
         }
 
-        return $versions;
+        return array_values($versions);
     }
 
-    protected function renderRows(array $versions, array $cols): array
+    /**
+     * @param list<array<string, mixed>> $versions
+     * @param array<string, array>       $columns
+     *
+     * @return list<array{class: string, cols: array<string, string>}>
+     */
+    private function renderRows(array $versions, array $columns): array
     {
         $rows = [];
 
         foreach ($versions as $version) {
-            $row = [];
-            $row['class'] = $version['class'];
+            $row = ['class' => $version['class'], 'cols' => []];
 
-            foreach ($cols as $key => $col) {
-                if (isset($col['renderCallback']) && \is_callable($col['renderCallback'])) {
-                    $row['cols'][$key] = \call_user_func($col['renderCallback'], $version);
-                } else {
-                    $row['cols'][$key] = '';
-                }
+            foreach ($columns as $key => $column) {
+                $callback = $column['renderCallback'] ?? null;
+                $row['cols'][$key] = \is_callable($callback) ? (string) $callback($version) : '';
             }
 
             $rows[] = $row;
@@ -240,36 +259,49 @@ class VersionListGenerator
         return $rows;
     }
 
-    protected function renderRowActions(array $version): string
+    private function renderRowActions(array $version): string
     {
         if ($version['deleted']) {
             $route = $this->router->generate('contao_backend', ['do' => 'undo']);
+            $title = $this->translator->trans('MSC.restore', [], 'contao_default');
 
-            return '<a href="'.$route.'" title="'.StringUtil::specialchars($GLOBALS['TL_LANG']['MSC']['restore']).'">'.Image::getHtml('undo.svg', '', 'class="undo"').'</a>';
+            return '<a href="'.self::escape($route).'" title="'.self::escape($title).'">'.Image::getHtml('undo.svg', '', 'class="undo"').'</a>';
         }
-        $return = '';
+
+        $actions = '';
+        $editTitle = $this->translator->trans('MSC.editElement', [], 'contao_default');
 
         if ($version['editUrl']) {
-            $return .= '<a href="'.$version['editUrl'].'" title="'.StringUtil::specialchars($GLOBALS['TL_LANG']['MSC']['editElement']).'" class="edit">'.Image::getHtml('edit.svg', '', 'style="padding:0 2px"').'</a>';
+            $actions .= '<a href="'.$version['editUrl'].'" title="'.self::escape($editTitle).'" class="edit">'.Image::getHtml('edit.svg', '', 'style="padding:0 2px"').'</a>';
         } else {
-            $return .= Image::getHtml('edit_.svg', '', 'style="padding:0 2px"');
+            $actions .= Image::getHtml('edit--disabled.svg', '', 'style="padding:0 2px"');
         }
 
-        if ($version['to'] > 1) {
-            $return .= '<a href="'.$version['editUrl'].'&amp;from='.$version['from'].'&amp;to='.$version['to'].'&amp;versions=1&amp;popup=1" title="'.StringUtil::specialchars(str_replace("'", "\\'", $GLOBALS['TL_LANG']['MSC']['showDifferences'])).'" onclick="Backend.openModalIframe({\'title\':\''.sprintf(StringUtil::specialchars(str_replace("'", "\\'",
-                        $GLOBALS['TL_LANG']['MSC']['recordOfTable'])), $version['pid'], $version['fromTable']).'\',\'url\':this.href});return false">'.Image::getHtml('diff.svg').'</a>';
+        if ($version['editUrl'] && $version['to'] > 1) {
+            $showDifferences = $this->translator->trans('MSC.showDifferences', [], 'contao_default');
+            $recordOfTable = $this->translator->trans('MSC.recordOfTable', [$version['pid'], $version['fromTable']], 'contao_default');
+            $onclick = sprintf(
+                'Backend.openModalIframe({title:%s,url:this.href});return false',
+                json_encode($recordOfTable, JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_THROW_ON_ERROR),
+            );
+            $href = $version['editUrl'].'&amp;from='.$version['from'].'&amp;to='.$version['to'].'&amp;versions=1&amp;popup=1';
+            $actions .= '<a href="'.$href.'" title="'.self::escape($showDifferences).'" onclick="'.self::escape($onclick).'">'.Image::getHtml('diff.svg').'</a>';
         } else {
-            $return .= Image::getHtml('diff_.svg');
+            $actions .= Image::getHtml('diff--disabled.svg');
         }
 
-        return $return;
+        return $actions;
     }
 
-    protected function renderPagination(int $versionCount): string
+    private function renderPagination(int $versionCount): string
     {
-        // Create the pagination menu
-        $pagination = new Pagination($versionCount, 30, 7, 'vp', new BackendTemplate('be_pagination'));
+        $pagination = new Pagination($versionCount, self::ITEMS_PER_PAGE, 7, 'vp', new BackendTemplate('be_pagination'));
 
         return $pagination->generate();
+    }
+
+    private static function escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5);
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -13,7 +15,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 class HeimrichHannotAdvancedDashboardBundle extends Bundle
 {
-    public function getContainerExtension()
+    public function getContainerExtension(): HeimrichHannotAdvancedDashboardExtension
     {
         return new HeimrichHannotAdvancedDashboardExtension();
     }

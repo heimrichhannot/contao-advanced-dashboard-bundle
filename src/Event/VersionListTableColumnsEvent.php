@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -12,15 +14,8 @@ use Symfony\Contracts\EventDispatcher\Event;
 
 class VersionListTableColumnsEvent extends Event
 {
-    /** @var array */
-    private $columns;
-
-    /**
-     * VersionListTableColumnsEvent constructor.
-     */
-    public function __construct(array $columns)
+    public function __construct(private array $columns)
     {
-        $this->columns = $columns;
     }
 
     /**
@@ -36,12 +31,11 @@ class VersionListTableColumnsEvent extends Event
      * If the column already exists, it gets overridden.
      * If the column not exist, it's added to the end of the column list or at a given position.
      *
-     * @param string|int|null $position
      */
-    public function setColumn(string $key, array $value = [], $position = null): void
+    public function setColumn(string $key, array $value = [], int|string|null $position = null): void
     {
         if (!$this->hasColumn($key) && null !== $position) {
-            $this->array_insert($this->columns, $position, [$key => $value]);
+            $this->insert($this->columns, $position, [$key => $value]);
         } else {
             $this->columns[$key] = $value;
         }
@@ -77,19 +71,16 @@ class VersionListTableColumnsEvent extends Event
         return $this;
     }
 
-    /**
-     * @param int|string $position
-     * @param mixed      $insert
-     */
-    private function array_insert(array &$array, $position, array $insert)
+    private function insert(array &$array, int|string $position, array $insert): void
     {
         if (!\is_int($position)) {
-            $position = array_search($position, array_keys($array)) + 1;
+            $position = array_search($position, array_keys($array), true);
+            $position = false === $position ? count($array) : $position + 1;
         }
         $array = array_merge(
             \array_slice($array, 0, $position),
             $insert,
-            \array_slice($array, $position)
+            \array_slice($array, $position),
         );
     }
 }

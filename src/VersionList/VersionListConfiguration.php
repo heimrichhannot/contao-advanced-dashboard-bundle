@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -10,46 +12,33 @@ namespace HeimrichHannot\AdvancedDashboardBundle\VersionList;
 
 class VersionListConfiguration
 {
-    const USER_ACCESS_LEVEL_ALL = 'all';
-    const USER_ACCESS_LEVEL_SELF = 'self';
+    public const USER_ACCESS_LEVEL_ALL = 'all';
+    public const USER_ACCESS_LEVEL_SELF = 'self';
 
-    /** @var array|int */
-    protected $allowedUsers;
-
-    /** @var array */
-    private $tables;
-
-    /** @var array */
-    private $columns;
-
-    /**
-     * VersionListConfiguration constructor.
-     */
-    public function __construct(array $tables, array $columns, $allowedUsers)
+    /** @param list<int>|int $allowedUsers */
+    public function __construct(
+        private readonly array $tables,
+        private readonly array $columns,
+        private readonly array|int $allowedUsers,
+    )
     {
-        $this->tables = $tables;
-        $this->columns = $columns;
-
-        if (!\is_array($allowedUsers) && !\is_int($allowedUsers)) {
-            throw new \InvalidArgumentException('User must be either integer or an array of integers.');
+        if (\is_array($allowedUsers) && ([] === $allowedUsers || count($allowedUsers) !== count(array_filter($allowedUsers, 'is_int')))) {
+            throw new \InvalidArgumentException('Users must be a non-empty list of integers.');
         }
-        $this->allowedUsers = $allowedUsers;
     }
 
     public function getTables(): array
     {
-        return $this->tables ?? [];
+        return $this->tables;
     }
 
     public function getColumns(): array
     {
-        return $this->columns ?? [];
+        return $this->columns;
     }
 
-    /**
-     * @return array|int
-     */
-    public function getAllowedUsers()
+    /** @return list<int>|int */
+    public function getAllowedUsers(): array|int
     {
         return $this->allowedUsers;
     }

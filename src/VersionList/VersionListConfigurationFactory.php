@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -8,23 +10,13 @@
 
 namespace HeimrichHannot\AdvancedDashboardBundle\VersionList;
 
-use Symfony\Component\Security\Core\Security;
+use Contao\BackendUser;
+use Symfony\Bundle\SecurityBundle\Security;
 
 class VersionListConfigurationFactory
 {
-    /** @var Security */
-    protected $security;
-
-    /** @var array */
-    protected $bundleConfig;
-
-    /**
-     * VersionListConfigurationFactory constructor.
-     */
-    public function __construct(Security $security, array $bundleConfig)
+    public function __construct(private readonly Security $security, private readonly array $bundleConfig)
     {
-        $this->security = $security;
-        $this->bundleConfig = $bundleConfig;
     }
 
     public function createConfigurationForCurrentUser(): VersionListConfiguration
@@ -33,57 +25,58 @@ class VersionListConfigurationFactory
             return new VersionListConfiguration([], [], 0);
         }
 
-        $configs = array_keys($this->bundleConfig['versions_rights']);
+        $user = $this->security->getUser();
+
+        if (!$user instanceof BackendUser) {
+            throw new \LogicException('The advanced dashboard can only be rendered for a Contao back end user.');
+        }
 
         $tables = null;
         $columns = null;
         $userLevel = VersionListConfiguration::USER_ACCESS_LEVEL_SELF;
-        $allowedUsers = (int) $this->security->getUser()->id;
-        $userConfigs = [];
+        $allowedUsers = (int) $user->id;
+        $hasUserConfig = false;
 
-        if (!empty($configs)) {
-            foreach ($configs as $configName) {
-                if (!$this->security->isGranted('contao_user.huhAdvDash_versionsRights', $configName)) {
-                    continue;
-                }
-                $userConfigs[] = $configName;
-                $config = &$this->bundleConfig['versions_rights'][$configName];
+        foreach ($this->bundleConfig['versions_rights'] as $configName => $config) {
+            if (!$this->security->isGranted('contao_user.huhAdvDash_versionsRights', $configName)) {
+                continue;
+            }
 
-                if (!\is_array($tables) || !empty($tables)) {
-                    if (empty($config['tables'])) {
-                        $tables = [];
-                    } else {
-                        $tables = array_merge($tables ?? [], $config['tables']);
-                    }
-                }
+            $hasUserConfig = true;
+            $tables = $this->mergeRestrictions($tables, $config['tables']);
+            $columns = $this->mergeRestrictions($columns, $config['columns']);
 
-                if (!\is_array($columns) || !empty($columns)) {
-                    if (empty($config['columns'])) {
-                        $columns = [];
-                    } else {
-                        $columns = array_merge($columns ?? [], $config['columns']);
-                    }
-                }
-
-                if (VersionListConfiguration::USER_ACCESS_LEVEL_ALL !== $userLevel) {
-                    if (VersionListConfiguration::USER_ACCESS_LEVEL_ALL === $config['user_access_level']) {
-                        $userLevel = VersionListConfiguration::USER_ACCESS_LEVEL_ALL;
-                    }
-                }
+            if (VersionListConfiguration::USER_ACCESS_LEVEL_ALL === $config['user_access_level']) {
+                $userLevel = VersionListConfiguration::USER_ACCESS_LEVEL_ALL;
             }
         }
 
-        if (empty($userConfigs)) {
-            $tables = $this->bundleConfig['versions_rights']['default']['tables'] ?? [];
-            $columns = $this->bundleConfig['versions_rights']['default']['columns'] ?? [];
-            $userLevel = $this->bundleConfig['versions_rights']['default']['user_access_level'];
+        if (!$hasUserConfig) {
+            $defaultConfig = $this->bundleConfig['versions_rights']['default'];
+            $tables = $defaultConfig['tables'];
+            $columns = $defaultConfig['columns'];
+            $userLevel = $defaultConfig['user_access_level'];
         }
 
-        switch ($userLevel) {
-            case VersionListConfiguration::USER_ACCESS_LEVEL_ALL:
-                $allowedUsers = 0;
+        if (VersionListConfiguration::USER_ACCESS_LEVEL_ALL === $userLevel) {
+            $allowedUsers = 0;
         }
 
-        return new VersionListConfiguration($tables, $columns, $allowedUsers);
+        return new VersionListConfiguration($tables ?? [], $columns ?? [], $allowedUsers);
+    }
+
+    /**
+     * @param list<string>|null $current
+     * @param list<string>      $next
+     *
+     * @return list<string>
+     */
+    private function mergeRestrictions(?array $current, array $next): array
+    {
+        if ([] === $current || [] === $next) {
+            return [];
+        }
+
+        return array_values(array_unique([...($current ?? []), ...$next]));
     }
 }

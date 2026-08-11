@@ -4,17 +4,41 @@
   "description": "A bundle to customize the contao backend dashboard.",
   "license": "LGPL-3.0-or-later",
   "require": {
-    "php": "^7.2|^8.0",
-    "contao/core-bundle": "^4.9",
-    "heimrichhannot/contao-twig-support-bundle": "^1.0",
-    "symfony/config": "^4.4|^5.0",
-    "symfony/dependency-injection": "^4.4|^5.0",
-    "symfony/event-dispatcher": "^4.4|^5.0",
-    "symfony/http-kernel": "^4.4|^5.0"
+    "php": "^8.1",
+    "contao/core-bundle": "^5.3",
+    "contao/manager-plugin": "^2.0",
+    "doctrine/dbal": "^3.6|^4.3",
+    "symfony/config": "^6.4|^7.0",
+    "symfony/dependency-injection": "^6.4|^7.0",
+    "symfony/event-dispatcher": "^6.4|^7.0",
+    "symfony/event-dispatcher-contracts": "^3.0",
+    "symfony/http-foundation": "^6.4|^7.0",
+    "symfony/http-kernel": "^6.4|^7.0",
+    "symfony/routing": "^6.4|^7.0",
+    "symfony/security-bundle": "^6.4|^7.0",
+    "symfony/translation-contracts": "^3.0"
+  },
+  "require-dev": {
+    "contao/test-case": "^5.3"
   },
   "autoload": {
     "psr-4": {
       "HeimrichHannot\\AdvancedDashboardBundle\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "HeimrichHannot\\AdvancedDashboardBundle\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit"
+  },
+  "config": {
+    "allow-plugins": {
+      "contao-components/installer": true,
+      "contao/manager-plugin": true,
+      "php-http/discovery": false
     }
   },
   "extra": {

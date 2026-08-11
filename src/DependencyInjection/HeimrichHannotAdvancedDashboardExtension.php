@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -17,28 +19,30 @@ use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
 class HeimrichHannotAdvancedDashboardExtension extends Extension
 {
-    public function load(array $configs, ContainerBuilder $container)
+    public function load(array $configs, ContainerBuilder $container): void
     {
         $loader = new YamlFileLoader(
             $container,
-            new FileLocator(__DIR__.'/../Resources/config')
+            new FileLocator(__DIR__.'/../../config')
         );
-        $loader->load('services.yml');
+        $loader->load('services.yaml');
 
-        array_unshift($configs, ['versions_rights' => ['default' => []]]);
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
 
-        if (!isset($config['versions_rights']['default'])) {
-            $config['versions_rights']['default'] = [
+        $config['versions_rights']['default'] = array_replace(
+            [
                 'user_access_level' => VersionListConfiguration::USER_ACCESS_LEVEL_SELF,
-                'columns' => array_keys(VersionListGenerator::columns()),
-            ];
-        }
+                'columns' => VersionListGenerator::DEFAULT_COLUMNS,
+                'tables' => [],
+            ],
+            $config['versions_rights']['default'] ?? [],
+        );
+
         $container->setParameter('huh_advanced_dashboard', $config);
     }
 
-    public function getAlias()
+    public function getAlias(): string
     {
         return 'huh_advanced_dashboard';
     }

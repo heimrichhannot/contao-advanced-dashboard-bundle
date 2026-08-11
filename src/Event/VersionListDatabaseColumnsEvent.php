@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -12,19 +14,13 @@ use Symfony\Contracts\EventDispatcher\Event;
 
 class VersionListDatabaseColumnsEvent extends Event
 {
-    private $columns = [];
-
-    /**
-     * VersionListDatabaseColumnsEvent constructor.
-     */
-    public function __construct(array $columns)
+    public function __construct(private array $columns = [])
     {
-        $this->columns = $columns;
     }
 
     public function hasColumn(string $column): bool
     {
-        return \in_array($column, $this->columns);
+        return \in_array($column, $this->columns, true);
     }
 
     public function addColumn(string $column): void
@@ -36,8 +32,9 @@ class VersionListDatabaseColumnsEvent extends Event
 
     public function removeColumn(string $column): void
     {
-        if (false !== ($key = array_search($column, $this->columns))) {
+        if (false !== ($key = array_search($column, $this->columns, true))) {
             unset($this->columns[$key]);
+            $this->columns = array_values($this->columns);
         }
     }
 
@@ -48,6 +45,6 @@ class VersionListDatabaseColumnsEvent extends Event
 
     public function setColumns(array $columns): void
     {
-        $this->columns = $columns;
+        $this->columns = array_values($columns);
     }
 }
