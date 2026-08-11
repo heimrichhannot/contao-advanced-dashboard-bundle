@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Changed: require PHP 8.1 and Contao 5.3 or newer
 - Changed: use Contao's native Twig template integration and PHP attributes
 - Changed: use the modern root-level `config/` and `contao/` bundle structure
+- Changed: migrate Contao translations to Symfony PHP translation resources
 - Changed: replace template position variables with overridable Twig blocks
 - Fixed: generate valid CSRF-protected version URLs in Contao 5
 - Fixed: render row actions on PHP 8 and correctly detect deleted records
