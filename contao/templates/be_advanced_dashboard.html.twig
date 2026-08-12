@@ -3,8 +3,6 @@
 {% block dashboard %}
 <div id="tl_soverview">
 
-    {% block dashboard_top %}{% endblock %}
-
     {% block messages %}
         <div id="tl_messages">
             <h2>{{ systemMessages|default('Alerts') }}</h2>
@@ -13,16 +11,12 @@
         </div>
     {% endblock %}
 
-    {% block before_shortcuts %}{% endblock %}
-
     {% block shortcuts %}
         <div id="tl_shortcuts">
             <h2>{{ shortcuts|default }}</h2>
             <p>{{ shortcutsLink|default|raw }}</p>
         </div>
     {% endblock %}
-
-    {% block before_versions %}{% endblock %}
 
     {% block versions %}
         <div id="tl_versions">
@@ -57,17 +51,15 @@
         </div>
     {% endblock %}
 
-    {% block dashboard_bottom %}
-        {% block credits %}
-            <div id="tl_credits">
-                <p style="float:right;font-size:0.9em;padding-top:18px;">
-                    <a href="https://github.com/heimrichhannot/contao-advanced-dashboard-bundle" target="_blank" rel="noopener noreferrer">Advanced Dashboard</a>
-                    by
-                    <a href="https://www.heimrich-hannot.de" style="font-style:italic;" target="_blank" rel="noopener noreferrer">Heimrich+Hannot</a>
-                </p>
-                <div class="clear"></div>
-            </div>
-        {% endblock %}
+    {% block credits %}
+        <div id="tl_credits">
+            <p style="float:right;font-size:0.9em;padding-top:18px;">
+                <a href="https://github.com/heimrichhannot/contao-advanced-dashboard-bundle" target="_blank" rel="noopener noreferrer">Advanced Dashboard</a>
+                by
+                <a href="https://www.heimrich-hannot.de" style="font-style:italic;" target="_blank" rel="noopener noreferrer">Heimrich+Hannot</a>
+            </p>
+            <div class="clear"></div>
+        </div>
     {% endblock %}
 
 </div>
