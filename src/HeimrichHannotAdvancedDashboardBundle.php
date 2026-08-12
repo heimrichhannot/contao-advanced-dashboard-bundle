@@ -19,4 +19,9 @@ class HeimrichHannotAdvancedDashboardBundle extends Bundle
     {
         return new HeimrichHannotAdvancedDashboardExtension();
     }
+
+    public function getPath(): string
+    {
+        return \dirname(__DIR__);
+    }
 }

@@ -14,11 +14,15 @@ use Contao\BackendTemplate;
 use Contao\BackendUser;
 use Contao\Config;
 use Contao\CoreBundle\Csrf\ContaoCsrfTokenManager;
+use Contao\CoreBundle\Pagination\PaginationConfig;
+use Contao\CoreBundle\Pagination\PaginationFactory;
+use Contao\CoreBundle\Pagination\PaginationFactoryInterface;
 use Contao\CoreBundle\Security\ContaoCorePermissions;
 use Contao\FilesModel;
 use Contao\Image;
 use Contao\Pagination;
 use Contao\StringUtil;
+use Contao\System;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
@@ -53,6 +57,7 @@ class VersionListGenerator
         private readonly ContaoCsrfTokenManager $csrfTokenManager,
         private readonly Security $security,
         private readonly TranslatorInterface $translator,
+        private readonly PaginationFactoryInterface $paginationFactory,
     ) {
     }
 
@@ -105,7 +110,7 @@ class VersionListGenerator
         return [
             'versions' => $this->renderRows($versions, $columns),
             'columns' => $columns,
-            'pagination' => $this->renderPagination($versionCount),
+            'pagination' => $this->paginationFactory->create((new PaginationConfig('vp', $versionCount, self::ITEMS_PER_PAGE))->withIgnoreOutOfBounds()),
         ];
     }
 
@@ -291,13 +296,6 @@ class VersionListGenerator
         }
 
         return $actions;
-    }
-
-    private function renderPagination(int $versionCount): string
-    {
-        $pagination = new Pagination($versionCount, self::ITEMS_PER_PAGE, 7, 'vp', new BackendTemplate('be_pagination'));
-
-        return $pagination->generate();
     }
 
     private static function escape(string $value): string

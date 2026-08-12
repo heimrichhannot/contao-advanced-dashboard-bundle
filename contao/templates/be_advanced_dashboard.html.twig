@@ -48,7 +48,9 @@
                     {% endfor %}
                     </tbody>
                 </table>
-                {{ pagination|default|raw }}
+                {% block pagination %}
+                    {% include '@Contao/backend/component/_pagination.html.twig' with {pagination: pagination} %}
+                {% endblock %}
             {% else %}
                 <p>{{ 'MSC.noVersions'|trans }}</p>
             {% endif %}
