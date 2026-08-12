@@ -13,8 +13,6 @@ namespace HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao;
 use Contao\CoreBundle\DependencyInjection\Attribute\AsHook;
 use Contao\Template;
 use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListBuilder;
-use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListConfigurationFactory;
-use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListGenerator;
 
 #[AsHook('parseTemplate', priority: -10)]
 readonly class ParseTemplateListener
