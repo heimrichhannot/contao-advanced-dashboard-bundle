@@ -17,10 +17,9 @@ class VersionListConfigurationTest extends TestCase
 {
     public function testExposesItsRestrictions(): void
     {
-        $configuration = new VersionListConfiguration(['tl_news'], ['date'], [1, 2]);
+        $configuration = new VersionListConfiguration(['tl_news'], [1, 2]);
 
         self::assertSame(['tl_news'], $configuration->getTables());
-        self::assertSame(['date'], $configuration->getColumns());
         self::assertSame([1, 2], $configuration->getAllowedUsers());
     }
 
@@ -28,13 +27,13 @@ class VersionListConfigurationTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new VersionListConfiguration([], [], []);
+        new VersionListConfiguration([], []);
     }
 
     public function testRejectsAUserListWithNonIntegerValues(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new VersionListConfiguration([], [], [1, '2']);
+        new VersionListConfiguration([], [1, '2']);
     }
 }

@@ -98,15 +98,6 @@ class VersionListGenerator
         $versions = $this->prepareRows($this->connection->executeQuery($sql, $parameters, $types));
         $columns = $this->eventDispatcher->dispatch(new VersionListTableColumnsEvent($this->createDefaultColumns()))->getColumns();
 
-        if ([] !== $configuration->getColumns()) {
-            $allowedColumns = $configuration->getColumns();
-            $columns = array_filter(
-                $columns,
-                static fn (string $key): bool => \in_array($key, $allowedColumns, true),
-                ARRAY_FILTER_USE_KEY,
-            );
-        }
-
         return [
             'versions' => $this->renderRows($versions, $columns),
             'columns' => $columns,

@@ -11,7 +11,7 @@ declare(strict_types=1);
 namespace HeimrichHannot\AdvancedDashboardBundle\Tests\VersionList;
 
 use Contao\BackendUser;
-use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListConfiguration;
+use HeimrichHannot\AdvancedDashboardBundle\VersionList\AccessLevel;
 use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListConfigurationFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -20,75 +20,70 @@ class VersionListConfigurationFactoryTest extends TestCase
 {
     public function testAdministratorReceivesUnrestrictedConfiguration(): void
     {
-        $checkedAttributes = [];
-        $security = $this->createMock(Security::class);
-        $security->method('isGranted')->willReturnCallback(
-            static function (mixed $attribute) use (&$checkedAttributes): bool {
-                $checkedAttributes[] = $attribute;
-
-                return true;
-            },
-        );
+        $user = $this->createBackendUser(1, [], true);
+        $security = $this->createSecurity($user);
 
         $configuration = (new VersionListConfigurationFactory($security, $this->createBundleConfig()))
             ->createConfigurationForCurrentUser()
         ;
 
-        self::assertSame(['ROLE_ADMIN'], $checkedAttributes);
         self::assertSame([], $configuration->getTables());
-        self::assertSame([], $configuration->getColumns());
         self::assertSame(0, $configuration->getAllowedUsers());
     }
 
     public function testUsesTheDefaultConfigurationWithoutAssignedRights(): void
     {
-        $security = $this->createSecurity([], 42);
+        $security = $this->createSecurity($this->createBackendUser(42));
 
         $configuration = (new VersionListConfigurationFactory($security, $this->createBundleConfig()))
             ->createConfigurationForCurrentUser()
         ;
 
         self::assertSame(['tl_content'], $configuration->getTables());
-        self::assertSame(['date', 'actions'], $configuration->getColumns());
         self::assertSame(42, $configuration->getAllowedUsers());
     }
 
     public function testMergesAssignedRightsAndTreatsAnEmptyRestrictionAsUnrestricted(): void
     {
-        $security = $this->createSecurity(['editor_news', 'editor_all'], 42);
+        $security = $this->createSecurity($this->createBackendUser(42, ['editor_news', 'editor_all']));
 
         $configuration = (new VersionListConfigurationFactory($security, $this->createBundleConfig()))
             ->createConfigurationForCurrentUser()
         ;
 
         self::assertSame([], $configuration->getTables());
-        self::assertSame(['date', 'description', 'actions'], $configuration->getColumns());
         self::assertSame(0, $configuration->getAllowedUsers());
     }
 
-    private function createSecurity(array $grantedConfigurations, int $userId): Security
+    public function testCreatesConfigurationForGivenUser(): void
     {
-        $user = new class($userId) extends BackendUser {
-            public function __construct(int $userId)
-            {
-                $this->id = $userId;
-                $this->admin = false;
-            }
-        };
+        $configuration = (new VersionListConfigurationFactory($this->createStub(Security::class), $this->createBundleConfig()))
+            ->createConfigurationForUser($this->createBackendUser(84, ['editor_news']))
+        ;
 
-        $security = $this->createMock(Security::class);
+        self::assertSame(['tl_news'], $configuration->getTables());
+        self::assertSame(84, $configuration->getAllowedUsers());
+    }
+
+    private function createSecurity(BackendUser $user): Security
+    {
+        $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
-        $security->method('isGranted')->willReturnCallback(
-            static function (mixed $attribute, mixed $subject = null) use ($grantedConfigurations): bool {
-                if ('ROLE_ADMIN' === $attribute) {
-                    return false;
-                }
-
-                return 'contao_user.huhAdvDash_versionsRights' === $attribute && \in_array($subject, $grantedConfigurations, true);
-            },
-        );
 
         return $security;
+    }
+
+    /** @param list<string> $versionRights */
+    private function createBackendUser(int $userId, array $versionRights = [], bool $admin = false): BackendUser
+    {
+        return new class($userId, $versionRights, $admin) extends BackendUser {
+            public function __construct(int $userId, array $versionRights, bool $admin)
+            {
+                $this->id = $userId;
+                $this->admin = $admin;
+                $this->huhAdvDash_versionsRights = $versionRights;
+            }
+        };
     }
 
     private function createBundleConfig(): array
@@ -96,18 +91,15 @@ class VersionListConfigurationFactoryTest extends TestCase
         return [
             'versions_rights' => [
                 'default' => [
-                    'user_access_level' => VersionListConfiguration::USER_ACCESS_LEVEL_SELF,
-                    'columns' => ['date', 'actions'],
+                    'user_access_level' => AccessLevel::SELF->value,
                     'tables' => ['tl_content'],
                 ],
                 'editor_news' => [
-                    'user_access_level' => VersionListConfiguration::USER_ACCESS_LEVEL_SELF,
-                    'columns' => ['date', 'description'],
+                    'user_access_level' => AccessLevel::SELF->value,
                     'tables' => ['tl_news'],
                 ],
                 'editor_all' => [
-                    'user_access_level' => VersionListConfiguration::USER_ACCESS_LEVEL_ALL,
-                    'columns' => ['actions', 'date'],
+                    'user_access_level' => AccessLevel::ALL->value,
                     'tables' => [],
                 ],
             ],

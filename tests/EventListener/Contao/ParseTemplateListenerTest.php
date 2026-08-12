@@ -33,7 +33,7 @@ class ParseTemplateListenerTest extends TestCase
 
     public function testPreparesTheNativeTwigDashboardTemplate(): void
     {
-        $configuration = new VersionListConfiguration([], [], 0);
+        $configuration = new VersionListConfiguration([], 0);
         $configurationFactory = $this->createMock(VersionListConfigurationFactory::class);
         $configurationFactory->method('createConfigurationForCurrentUser')->willReturn($configuration);
 

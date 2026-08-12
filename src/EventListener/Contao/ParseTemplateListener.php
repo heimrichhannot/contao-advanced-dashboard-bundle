@@ -12,15 +12,15 @@ namespace HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao;
 
 use Contao\CoreBundle\DependencyInjection\Attribute\AsHook;
 use Contao\Template;
+use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListBuilder;
 use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListConfigurationFactory;
 use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListGenerator;
 
 #[AsHook('parseTemplate', priority: -10)]
-class ParseTemplateListener
+readonly class ParseTemplateListener
 {
     public function __construct(
-        private readonly VersionListGenerator $versionListGenerator,
-        private readonly VersionListConfigurationFactory $configurationFactory,
+        private VersionListBuilder $versionListBuilder,
     ) {
     }
 
@@ -30,12 +30,10 @@ class ParseTemplateListener
             return;
         }
 
-        ['versions' => $versions, 'columns' => $columns, 'pagination' => $pagination] =
-            $this->versionListGenerator->generate($this->configurationFactory->createConfigurationForCurrentUser());
+        $versionList = $this->versionListBuilder->buildForCurrentUser();
 
         $template->setName('be_advanced_dashboard');
-        $template->versions = $versions;
-        $template->pagination = $pagination;
-        $template->columns = $columns;
+        $template->versions = $versionList->rows();
+        $template->pagination = $versionList->pagination();
     }
 }

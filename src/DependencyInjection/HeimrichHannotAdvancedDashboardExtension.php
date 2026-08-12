@@ -10,8 +10,7 @@ declare(strict_types=1);
 
 namespace HeimrichHannot\AdvancedDashboardBundle\DependencyInjection;
 
-use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListConfiguration;
-use HeimrichHannot\AdvancedDashboardBundle\VersionList\VersionListGenerator;
+use HeimrichHannot\AdvancedDashboardBundle\VersionList\AccessLevel;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -32,8 +31,7 @@ class HeimrichHannotAdvancedDashboardExtension extends Extension
 
         $config['versions_rights']['default'] = array_replace(
             [
-                'user_access_level' => VersionListConfiguration::USER_ACCESS_LEVEL_SELF,
-                'columns' => VersionListGenerator::DEFAULT_COLUMNS,
+                'user_access_level' => AccessLevel::SELF->value,
                 'tables' => [],
             ],
             $config['versions_rights']['default'] ?? [],
