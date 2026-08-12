@@ -11,9 +11,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - php: '8.1'
+          - php: '8.4'
             contao: '5.3.*'
-          - php: '8.3'
+          - php: '8.5'
             contao: '^5.3'
 
     steps:
