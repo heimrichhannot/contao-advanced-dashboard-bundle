@@ -1,13 +1,12 @@
 # Contao Advanced Dashboard Bundle
 
-Customize the Contao back end dashboard and control which version-log entries and columns are visible to back end users.
+Customize the Contao back end dashboard and control which version-log entries are visible to back end users.
 
 ## Features
 
 - Replaces the Contao dashboard with an extensible native Twig template.
 - Restricts version entries by user and database table.
-- Allows individual version-table columns per user or user group.
-- Provides events for adding database data and custom rendered columns.
+- Provides an event for customizing version rows.
 
 ![](docs/img/screenshot.png)
 
@@ -34,21 +33,13 @@ huh_advanced_dashboard:
     # Show changes from all users, but only for tl_news.
     editor_news:
       user_access_level: all
-      columns:
-        - date
-        - user
-        - table
-        - id
-        - description
-        - version
-        - actions
       tables:
         - tl_news
 ```
 
 Clear the application cache, then assign the new version right in the settings of a back end user or user group.
 
-If no assigned configuration matches, the bundle uses the `default` configuration. Administrators are always unrestricted. An empty `tables` or `columns` list means that the corresponding value is unrestricted.
+If no assigned configuration matches, the bundle uses the `default` configuration. Administrators are always unrestricted. An empty `tables` list means that all tables are allowed.
 
 ## Customize the dashboard template
 
@@ -82,9 +73,9 @@ The following blocks are available:
 
 The old position and visibility variables and the Twig Support Bundle events are no longer supported.
 
-## Add or modify version columns
+## Customize version rows
 
-Use `VersionListDatabaseColumnsEvent` to fetch additional `tl_version` columns and `VersionListTableColumnsEvent` to add or modify rendered columns:
+Use `VersionListRowEvent` to modify each prepared version row:
 
 ```php
 <?php
@@ -93,8 +84,7 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
-use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListDatabaseColumnsEvent;
-use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListTableColumnsEvent;
+use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListRowEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 class AdvancedDashboardEventSubscriber implements EventSubscriberInterface
@@ -102,27 +92,18 @@ class AdvancedDashboardEventSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            VersionListDatabaseColumnsEvent::class => 'onDatabaseColumns',
-            VersionListTableColumnsEvent::class => 'onTableColumns',
+            VersionListRowEvent::class => 'onVersionListRow',
         ];
     }
 
-    public function onDatabaseColumns(VersionListDatabaseColumnsEvent $event): void
+    public function onVersionListRow(VersionListRowEvent $event): void
     {
-        $event->addColumn('custom_information');
-    }
-
-    public function onTableColumns(VersionListTableColumnsEvent $event): void
-    {
-        $event->setColumn('custom_column', [
-            'label' => 'Custom information',
-            'renderCallback' => static fn (array $version): string => $version['custom_information'] ?: 'No custom information',
-        ]);
+        $event->row['description'] = strtoupper((string) $event->row['description']);
     }
 }
 ```
 
-Rendered callback values are treated as trusted back end HTML. Escape any data that is not controlled by the application.
+Override the dashboard template if you need to render additional row values or table columns.
 
 ## Configuration reference
 
@@ -130,16 +111,6 @@ Rendered callback values are treated as trusted back end HTML. Escape any data t
 huh_advanced_dashboard:
   versions_rights:
     name:
-      # Empty means all columns. The default configuration uses these columns:
-      columns:
-        - date
-        - user
-        - table
-        - id
-        - description
-        - version
-        - actions
-
       # Empty means all tables.
       tables: []
 

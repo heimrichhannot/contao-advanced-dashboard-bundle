@@ -99,29 +99,7 @@ The right names and the `huhAdvDash_versionsRights` fields are unchanged. Existi
 
 ## Version-list extension API
 
-### Database column event
-
-Columns supplied through `VersionListDatabaseColumnsEvent` are now quoted as database identifiers. Event listeners must add real `tl_version` column names only:
-
-```php
-$event->addColumn('custom_information');
-```
-
-SQL expressions, aliases and fragments such as `custom_information AS value` are no longer supported.
-
-The following observable API behavior also changed:
-
-- `hasColumn()` and `removeColumn()` compare values strictly.
-- `removeColumn()` and `setColumns()` normalize numeric array keys.
-- Removing every selected database column causes `VersionListGenerator::generate()` to throw a `LogicException`.
-
-Code relying on loose comparisons or sparse numeric offsets must be adjusted.
-
-### Rendered table column event
-
-`VersionListTableColumnsEvent::setColumn()` now accepts only `int|string|null` for its position argument. A string inserts after the matching column; an unknown string appends the column.
-
-The optional `class` value is now applied to both the header and data cells. Check custom CSS if it assumed that column classes were ignored.
+`VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent` are no longer dispatched. Use `VersionListRowEvent` to modify prepared rows and override the dashboard template to render additional values or columns.
 
 ## Direct PHP API changes
 
@@ -129,33 +107,21 @@ Applications using only the bundle configuration and events do not need the chan
 
 ### `VersionListGenerator`
 
-The public static `VersionListGenerator::columns()` method has been removed. Use `VersionListGenerator::DEFAULT_COLUMNS` for the standard column names and `VersionListTableColumnsEvent` to customize rendered columns.
-
-The following methods changed from protected to private and can no longer be overridden:
-
-- `prepareRows()`
-- `renderRows()`
-- `renderRowActions()`
-- `renderPagination()`
-
-Replace subclasses that override these methods with composition and event listeners.
-
-Manual construction of `VersionListGenerator` now additionally requires:
-
-- `RequestStack`
-- `ContaoCsrfTokenManager`
-- `Symfony\Bundle\SecurityBundle\Security`
-- `TranslatorInterface`
-
-Prefer using the autowired service instead of constructing it manually.
+`VersionListGenerator` has been removed. Use `VersionListBuilder` to build a `VersionList` instance.
 
 ### `VersionListConfiguration`
+
+The `USER_ACCESS_LEVEL_SELF` and `USER_ACCESS_LEVEL_ALL` constants have been replaced by the `AccessLevel` enum.
+
+The `$columns` constructor argument, `getColumns()` method and `versions_rights.*.columns` configuration option have been removed. Override the dashboard template to customize rendered columns.
 
 The constructor now accepts only `array|int` for `$allowedUsers`. Arrays must be non-empty and contain only integers. Use integer `0` to allow all users instead of passing an empty array.
 
 Its state is now private and readonly. Subclasses can no longer access or modify the former protected `$allowedUsers` property.
 
 ### `VersionListConfigurationFactory`
+
+Use `createConfigurationForUser()` to create a version-list configuration for a specific `BackendUser`. `createConfigurationForCurrentUser()` delegates to this method.
 
 The constructor now requires `Symfony\Bundle\SecurityBundle\Security` instead of the removed `Symfony\Component\Security\Core\Security` class. Update decorators, test doubles and manual construction accordingly.
 
@@ -165,9 +131,9 @@ The factory now throws a `LogicException` if the authenticated user is not a Con
 
 Bundle classes now use strict types and native parameter and return types. Subclasses, decorators and test doubles must declare compatible signatures.
 
-The former protected injected-service properties of `VersionListGenerator`, `VersionListConfigurationFactory`, `UserGroupContainer` and `ParseTemplateListener` are now private and readonly. Subclasses accessing or replacing those properties must be refactored to use their own dependencies or composition.
+The former protected injected-service properties of `VersionListConfigurationFactory`, `UserGroupContainer` and `ParseTemplateListener` are now private and readonly. Subclasses accessing or replacing those properties must be refactored to use their own dependencies or composition.
 
-`ParseTemplateListener` no longer accepts the Twig Support Bundle's `RenderListener` as its first constructor argument. Its constructor now accepts only `VersionListGenerator` and `VersionListConfigurationFactory`.
+`ParseTemplateListener` no longer accepts the Twig Support Bundle's `RenderListener`, `VersionListGenerator` or `VersionListConfigurationFactory`. Its constructor now accepts only `VersionListBuilder`.
 
 Hook and DCA callback registration has moved from Contao service annotations to the `#[AsHook]` and `#[AsCallback]` attributes. Code inspecting the old annotations must use the attributes instead.
 

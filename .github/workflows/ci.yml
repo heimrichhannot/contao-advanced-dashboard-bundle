@@ -12,9 +12,9 @@ jobs:
       matrix:
         include:
           - php: '8.4'
-            contao: '5.3.*'
+            contao: '5.7.*'
           - php: '8.5'
-            contao: '^5.3'
+            contao: '^5.7'
 
     steps:
       - uses: actions/checkout@v4
