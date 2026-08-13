@@ -100,15 +100,20 @@ readonly class VersionListBuilder
                     ->setParameter('userId', $config->getAllowedUsers());
             }
 
-            if ([] !== $config->getTables()) {
-                $builder->andWhere('fromTable IN (:tables)')
-                    ->setParameter('tables', $config->getTables(), ArrayParameterType::STRING);
-            }
-
-            if (!in_array('tl_user', $config->getTables()) && !$this->auth->isGranted(ContaoCorePermissions::USER_CAN_ACCESS_MODULE, 'user')) {
+            $allowedTables = $config->getTables();
+            if (!$this->auth->isGranted(ContaoCorePermissions::USER_CAN_ACCESS_MODULE, 'user')) {
                 $builder->andWhere('fromTable != :userTable')
                     ->setParameter('userTable', 'tl_user');
+                if (in_array('tl_user', $allowedTables, true)) {
+                    $allowedTables = array_filter($allowedTables, fn($table) => $table !== 'tl_user');
+                }
             }
+
+            if ([] !== $allowedTables) {
+                $builder->andWhere('fromTable IN (:tables)')
+                    ->setParameter('tables', $allowedTables, ArrayParameterType::STRING);
+            }
+
         };
     }
 
