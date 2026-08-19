@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Added: provide `VersionListFilterEvent` for adding custom filters to version count and result queries
 - Added: provide `VersionListRowEvent` for modifying prepared version rows
 - Changed: require PHP 8.4, Contao 5.7, Symfony 7.4 and Doctrine DBAL 3.7 or 4.3
 - Changed: use Contao's native Twig templates, pagination and operation menus

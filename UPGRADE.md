@@ -92,7 +92,23 @@ The valid values remain `self` and `all`. Version-right names and the `huhAdvDas
 
 ## Version-list events
 
-`VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent` have been removed. Delete their listeners and use `VersionListRowEvent` to modify a prepared row:
+`VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent` have been removed. Delete their listeners.
+
+Use the new `VersionListFilterEvent` to add conditions and parameters to the Doctrine DBAL query after the configured user and table restrictions have been applied:
+
+```php
+public function onVersionListFilter(VersionListFilterEvent $event): void
+{
+    $event->queryBuilder
+        ->andWhere('fromTable != :advancedDashboardExcludedTable')
+        ->setParameter('advancedDashboardExcludedTable', 'tl_internal_record')
+    ;
+}
+```
+
+The event also exposes the active `VersionListConfiguration`. It is dispatched for both the count and result queries, so listeners must add deterministic conditions that work with both queries and should use unique parameter names.
+
+Use `VersionListRowEvent` to modify a prepared row:
 
 ```php
 public function onVersionListRow(VersionListRowEvent $event): void

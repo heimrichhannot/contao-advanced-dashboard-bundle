@@ -6,7 +6,7 @@ Customize the Contao back end dashboard and control which version-log entries ar
 
 - Replaces the Contao dashboard with an extensible native Twig template.
 - Restricts version entries by user and database table.
-- Provides an event for customizing version rows.
+- Provides events for filtering version entries and customizing version rows.
 
 ![](docs/img/screenshot.png)
 
@@ -76,6 +76,41 @@ The following blocks are available:
 Override `dashboard` to change the complete layout. To add content to an existing section, override its block and call `{{ parent() }}` before or after the custom markup. Override a section with an empty block to hide it.
 
 The old position and visibility variables and the Twig Support Bundle events are no longer supported. Version table columns are now defined by the `versions` block instead of the removed `versions_rights.*.columns` option.
+
+## Filter version entries
+
+Use `VersionListFilterEvent` to add conditions to the Doctrine DBAL query after the configured user and table restrictions have been applied:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\EventListener;
+
+use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListFilterEvent;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+
+class AdvancedDashboardFilterSubscriber implements EventSubscriberInterface
+{
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            VersionListFilterEvent::class => 'onVersionListFilter',
+        ];
+    }
+
+    public function onVersionListFilter(VersionListFilterEvent $event): void
+    {
+        $event->queryBuilder
+            ->andWhere('fromTable != :advancedDashboardExcludedTable')
+            ->setParameter('advancedDashboardExcludedTable', 'tl_internal_record')
+        ;
+    }
+}
+```
+
+The event provides the query builder and the active `VersionListConfiguration`. It is dispatched once for the count query and once for the result query, so listeners must apply deterministic conditions to both queries. Use unique parameter names to avoid collisions with the built-in filters.
 
 ## Customize version rows
 
