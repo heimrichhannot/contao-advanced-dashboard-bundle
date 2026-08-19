@@ -47,10 +47,10 @@ When multiple rights are assigned, their table lists are combined. An empty `tab
 
 ## Customize the dashboard template
 
-The dashboard uses Contao's native template hierarchy. Create `templates/be_advanced_dashboard.html.twig` and extend the bundle template:
+The dashboard uses Contao's native template hierarchy. Create `[TWIG-ROOT]/be_advanced_dashboard.html.twig` and extend the bundle template:
 
 ```twig
-{% extends "@Contao/be_advanced_dashboard.html.twig" %}
+{% extends "@Contao_HeimrichHannotAdvancedDashboardBundle/be_advanced_dashboard.html.twig" %}
 
 {% block messages %}
     <section id="tl_custom_welcome">
