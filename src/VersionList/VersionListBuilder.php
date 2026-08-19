@@ -15,6 +15,7 @@ use Contao\System;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
+use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListFilterEvent;
 use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListRowEvent;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -48,15 +49,16 @@ readonly class VersionListBuilder
         if (null === $request) {
             throw new \RuntimeException('No current request available.');
         }
-        $filter = $this->createFilter($config);
-        $total = $this->total($filter);
-        $paginationConfig = (new PaginationConfig('vp', $total, $config->perPage))->withIgnoreOutOfBounds();
+
+        $total = $this->total($config);
+        $paginationConfig = new PaginationConfig('vp', $total, $config->perPage)
+            ->withIgnoreOutOfBounds();
         $pagination = $this->paginationFactory->create($paginationConfig);
 
 
         $arrVersions = array();
         $offset = $pagination->getOffset();
-        $rows = $this->fetchEntries($offset, $config->perPage, $filter);
+        $rows = $this->fetchEntries($offset, $config->perPage, $config);
 
         foreach ($rows as $arrRow)
         {
@@ -74,14 +76,14 @@ readonly class VersionListBuilder
         );
     }
 
-    private function total(\Closure $filter): int
+    private function total(VersionListConfiguration $config): int
     {
         $qb = $this->connection->createQueryBuilder()
             ->select('COUNT(*) AS count')
             ->from('tl_version')
             ->where('editUrl IS NOT NULL');
 
-        ($filter)($qb);
+        $this->applyFilter($config, $qb);
 
         $result = $qb->executeQuery();
         $total = $result->fetchOne();
@@ -89,38 +91,40 @@ readonly class VersionListBuilder
         return (int)$total;
     }
 
-    private function createFilter(VersionListConfiguration $config): \Closure
+    private function applyFilter(VersionListConfiguration $config, QueryBuilder $builder): void
     {
-        return function(QueryBuilder $builder) use ($config) {
-            if (is_array($config->getAllowedUsers())) {
-                $builder->andWhere('userid IN (:userIds)')
-                    ->setParameter('userIds', $config->getAllowedUsers(), ArrayParameterType::INTEGER);
-            } elseif ($config->getAllowedUsers() !== 0) {
-                $builder->andWhere('userid = :userId')
-                    ->setParameter('userId', $config->getAllowedUsers());
-            }
+        if (is_array($config->getAllowedUsers())) {
+            $builder->andWhere('userid IN (:userIds)')
+                ->setParameter('userIds', $config->getAllowedUsers(), ArrayParameterType::INTEGER);
+        } elseif ($config->getAllowedUsers() !== 0) {
+            $builder->andWhere('userid = :userId')
+                ->setParameter('userId', $config->getAllowedUsers());
+        }
 
-            $allowedTables = $config->getTables();
-            if (!$this->auth->isGranted(ContaoCorePermissions::USER_CAN_ACCESS_MODULE, 'user')) {
-                $builder->andWhere('fromTable != :userTable')
-                    ->setParameter('userTable', 'tl_user');
-                if (in_array('tl_user', $allowedTables, true)) {
-                    $allowedTables = array_filter($allowedTables, fn($table) => $table !== 'tl_user');
-                }
+        $allowedTables = $config->getTables();
+        if (!$this->auth->isGranted(ContaoCorePermissions::USER_CAN_ACCESS_MODULE, 'user')) {
+            $builder->andWhere('fromTable != :userTable')
+                ->setParameter('userTable', 'tl_user');
+            if (in_array('tl_user', $allowedTables, true)) {
+                $allowedTables = array_filter($allowedTables, fn($table) => $table !== 'tl_user');
             }
+        }
 
-            if ([] !== $allowedTables) {
-                $builder->andWhere('fromTable IN (:tables)')
-                    ->setParameter('tables', $allowedTables, ArrayParameterType::STRING);
-            }
+        if ([] !== $allowedTables) {
+            $builder->andWhere('fromTable IN (:tables)')
+                ->setParameter('tables', $allowedTables, ArrayParameterType::STRING);
+        }
 
-        };
+        $this->eventDispatcher->dispatch(new VersionListFilterEvent(
+            queryBuilder: $builder,
+            config: $config,
+        ));
     }
 
-    private function fetchEntries(int $offset, int $perPage, \Closure $filter): array
+    private function fetchEntries(int $offset, int $perPage, VersionListConfiguration $config): array
     {
         $qb = $this->connection->createQueryBuilder()
-            ->select('*')
+            ->select('pid, tstamp, version, fromTable, username, userid, description, editUrl, active')
             ->from('tl_version')
             ->where('editUrl IS NOT NULL')
             ->orderBy('tstamp', 'DESC')
@@ -129,7 +133,7 @@ readonly class VersionListBuilder
             ->setMaxResults($perPage)
             ->setFirstResult($offset);
 
-        ($filter)($qb);
+        $this->applyFilter($config, $qb);
 
         return $qb->fetchAllAssociative();
     }
