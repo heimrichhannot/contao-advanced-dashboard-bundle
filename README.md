@@ -79,7 +79,7 @@ The old position and visibility variables and the Twig Support Bundle events are
 
 ## Filter version entries
 
-Use `VersionListFilterEvent` to add conditions to the Doctrine DBAL query after the configured user and table restrictions have been applied:
+Use `VersionListFilterEvent` to customize the Doctrine DBAL query after the configured user and table restrictions have been applied:
 
 ```php
 <?php
@@ -89,20 +89,15 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListFilterEvent;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-class AdvancedDashboardFilterSubscriber implements EventSubscriberInterface
+class AdvancedDashboardFilterListener
 {
-    public static function getSubscribedEvents(): array
-    {
-        return [
-            VersionListFilterEvent::class => 'onVersionListFilter',
-        ];
-    }
-
+    #[AsEventListener]
     public function onVersionListFilter(VersionListFilterEvent $event): void
     {
         $event->queryBuilder
+            ->addSelect('memberId')
             ->andWhere('fromTable != :advancedDashboardExcludedTable')
             ->setParameter('advancedDashboardExcludedTable', 'tl_internal_record')
         ;
@@ -110,7 +105,7 @@ class AdvancedDashboardFilterSubscriber implements EventSubscriberInterface
 }
 ```
 
-The event provides the query builder and the active `VersionListConfiguration`. It is dispatched once for the count query and once for the result query, so listeners must apply deterministic conditions to both queries. Use unique parameter names to avoid collisions with the built-in filters.
+The event provides the query builder and the active `VersionListConfiguration`. Use `addSelect()` to make additional `tl_version` columns available to `VersionListRowEvent`. The event is dispatched once for the count query and once for the result query, so listeners must apply deterministic changes to both queries. Use unique parameter names to avoid collisions with the built-in filters.
 
 ## Customize version rows
 
@@ -124,17 +119,11 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use HeimrichHannot\AdvancedDashboardBundle\Event\VersionListRowEvent;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-class AdvancedDashboardEventSubscriber implements EventSubscriberInterface
+class AdvancedDashboardListener
 {
-    public static function getSubscribedEvents(): array
-    {
-        return [
-            VersionListRowEvent::class => 'onVersionListRow',
-        ];
-    }
-
+    #[AsEventListener]
     public function onVersionListRow(VersionListRowEvent $event): void
     {
         $event->row['description'] = strtoupper((string) $event->row['description']);
