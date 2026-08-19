@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -8,23 +10,17 @@
 
 namespace HeimrichHannot\AdvancedDashboardBundle\DataContainer;
 
-use Contao\CoreBundle\ServiceAnnotation\Callback;
+use Contao\CoreBundle\DependencyInjection\Attribute\AsCallback;
 use Contao\DataContainer;
 
 class UserGroupContainer
 {
-    /** @var array */
-    protected $bundleConfig;
-
-    public function __construct(array $bundleConfig)
+    public function __construct(private readonly array $bundleConfig)
     {
-        $this->bundleConfig = $bundleConfig;
     }
 
-    /**
-     * @Callback(table="tl_user", target="fields.huhAdvDash_versionsRights.options")
-     * @Callback(table="tl_user_group", target="fields.huhAdvDash_versionsRights.options")
-     */
+    #[AsCallback(table: 'tl_user', target: 'fields.huhAdvDash_versionsRights.options')]
+    #[AsCallback(table: 'tl_user_group', target: 'fields.huhAdvDash_versionsRights.options')]
     public function onVersionsRightsOptionsCallback(?DataContainer $dc): array
     {
         return array_keys($this->bundleConfig['versions_rights']);

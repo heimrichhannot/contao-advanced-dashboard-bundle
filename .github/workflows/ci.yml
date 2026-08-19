@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.4'
+            contao: '5.7.*'
+          - php: '8.5'
+            contao: '^5.7'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Select Contao version
+        run: composer require --no-update "contao/core-bundle:${{ matrix.contao }}" "contao/test-case:${{ matrix.contao }}"
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+      - name: Check PHP syntax
+        run: find src tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Run tests
+        run: composer test

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2021 Heimrich & Hannot GmbH
  *
@@ -13,16 +15,14 @@ use Contao\ManagerPlugin\Bundle\BundlePluginInterface;
 use Contao\ManagerPlugin\Bundle\Config\BundleConfig;
 use Contao\ManagerPlugin\Bundle\Parser\ParserInterface;
 use HeimrichHannot\AdvancedDashboardBundle\HeimrichHannotAdvancedDashboardBundle;
-use HeimrichHannot\TwigSupportBundle\HeimrichHannotTwigSupportBundle;
 
 class Plugin implements BundlePluginInterface
 {
-    public function getBundles(ParserInterface $parser)
+    public function getBundles(ParserInterface $parser): array
     {
         return [
             BundleConfig::create(HeimrichHannotAdvancedDashboardBundle::class)->setLoadAfter([
                 ContaoCoreBundle::class,
-                HeimrichHannotTwigSupportBundle::class,
             ]),
         ];
     }

@@ -10,5 +10,5 @@ services:
   HeimrichHannot\AdvancedDashboardBundle\EventListener\Contao\ParseTemplateListener: ~
 
   HeimrichHannot\AdvancedDashboardBundle\VersionList\:
-    resource: '../../VersionList/*'
-    exclude: '../../VersionList/VersionListConfiguration.php'
+    resource: '../src/VersionList/*'
+    exclude: '../src/VersionList/VersionListConfiguration.php'
