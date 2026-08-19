@@ -1,6 +1,6 @@
 # Upgrade guide
 
-This guide describes the breaking changes between the committed state of `main` and `feature/contao5`.
+This guide lists the migration steps for upgrading from version 0.1.x to the unreleased Contao 5 version.
 
 ## Requirements
 
@@ -8,11 +8,11 @@ The minimum supported versions have changed:
 
 | Dependency | Before | Now |
 | --- | --- | --- |
-| PHP | `^7.2 \| ^8.0` | `^8.1` |
-| Contao | `^4.9` | `^5.3` |
-| Symfony components | `^4.4 \| ^5.0` | `^6.4 \| ^7.0` |
+| PHP | `^7.2 \| ^8.0` | `^8.4` |
+| Contao | `^4.9` | `^5.7` |
+| Symfony components | `^4.4 \| ^5.0` | `^7.4` |
 
-Doctrine DBAL `^3.6` or `^4.3` and Contao Manager Plugin `^2.0` are now explicit dependencies.
+Doctrine DBAL `^3.7` or `^4.3` and Contao Manager Plugin `^2.0` are now explicit dependencies.
 
 Upgrade PHP and Contao before updating this bundle. Afterwards, update the Composer dependencies, run the Contao migrations and rebuild the application cache.
 
@@ -24,64 +24,59 @@ Upgrade PHP and Contao before updating this bundle. Afterwards, update the Compo
 composer remove heimrichhannot/contao-twig-support-bundle
 ```
 
-The dashboard now uses Contao's native Twig integration. Dashboard listeners for these Twig Support Bundle events are no longer executed:
-
-- `BeforeParseTwigTemplateEvent`
-- `BeforeRenderTwigTemplateEvent`
-
-Move these customizations to a native Contao template override.
+The dashboard now uses Contao's native Twig integration. Listeners for `BeforeParseTwigTemplateEvent` and `BeforeRenderTwigTemplateEvent` no longer customize the dashboard. Move those customizations to a native template override.
 
 ## Dashboard template migration
 
-The old bundle template at `backend/be_advanced_dashboard.html.twig` has been replaced with the managed Contao template `@Contao/be_advanced_dashboard.html.twig`.
+The old bundle template `backend/be_advanced_dashboard.html.twig` has been replaced with `@Contao/be_advanced_dashboard.html.twig`. Overrides below `templates/bundles/HeimrichHannotAdvancedDashboardBundle/backend/` are no longer used.
 
-Create `templates/be_advanced_dashboard.html.twig` in the application:
+Create `templates/be_advanced_dashboard.html.twig` in the application instead:
 
 ```twig
 {% extends "@Contao/be_advanced_dashboard.html.twig" %}
 
-{% block dashboard_top %}
+{% block messages %}
     <section id="tl_custom_welcome">
         <h2>Welcome</h2>
     </section>
+
+    {{ parent() }}
 {% endblock %}
 
 {% block shortcuts %}{% endblock %}
 ```
 
-Overrides stored below `templates/bundles/HeimrichHannotAdvancedDashboardBundle/backend/` are no longer used.
+The template exposes only these blocks:
 
-### Template variables replaced by blocks
+- `dashboard`
+- `messages`
+- `shortcuts`
+- `versions`
+- `credits`
 
-The position and visibility variables have been removed:
+The position variables `positionTop`, `positionBeforeShortcuts`, `positionBeforeVersions` and `positonBottom` have no direct block equivalents. Override `dashboard` to change the complete layout, or prepend/append content in one of the section blocks and call `{{ parent() }}` to retain its original content.
+
+Replace the visibility variables as follows:
 
 | Removed variable | Replacement |
 | --- | --- |
-| `positionTop` | Override `dashboard_top` |
-| `positionBeforeShortcuts` | Override `before_shortcuts` |
-| `positionBeforeVersions` | Override `before_versions` |
-| `positonBottom` | Override `dashboard_bottom` |
 | `showMessages = false` | Override `messages` with an empty block |
 | `showShortcuts = false` | Override `shortcuts` with an empty block |
 | `showVersions = false` | Override `versions` with an empty block |
 
-The available blocks are:
-
-- `dashboard`
-- `dashboard_top`
-- `messages`
-- `before_shortcuts`
-- `shortcuts`
-- `before_versions`
-- `versions`
-- `dashboard_bottom`
-- `credits`
-
-`dashboard_bottom` renders `credits` by default. Call `{{ parent() }}` when adding bottom content if the credits should remain visible. Override `credits` with an empty block to remove them.
-
 Values assigned to the removed variables through the `parseTemplate` hook no longer have an effect.
 
+### Template data
+
+Custom dashboard templates must also adapt to the new version-list data:
+
+- The `columns` variable and each row's rendered `cols` array have been removed. Rows now expose named values such as `date`, `username`, `shortTable`, `pid`, `description`, `version`, `active` and `operations`.
+- `pagination` is now a `PaginationInterface` object instead of rendered HTML. Render it with `@Contao/backend/component/_pagination.html.twig` as shown in the bundle template.
+- The standard version columns are defined by the Twig template. Override the `versions` block to change the table structure.
+
 ## Configuration migration
+
+Remove every `versions_rights.*.columns` entry. Configurable columns are no longer supported; customize the `versions` Twig block instead.
 
 `user_access_level` must be a scalar. Replace the array form shown by the old configuration reference:
 
@@ -93,53 +88,76 @@ user_access_level: [self]
 user_access_level: self
 ```
 
-The valid values remain `self` and `all`.
+The valid values remain `self` and `all`. Version-right names and the `huhAdvDash_versionsRights` fields are unchanged, so existing user and user-group assignments need no bundle-specific data migration.
 
-The right names and the `huhAdvDash_versionsRights` fields are unchanged. Existing user and user-group assignments do not require a bundle-specific data migration.
+## Version-list events
 
-## Version-list extension API
+`VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent` have been removed. Delete their listeners and use `VersionListRowEvent` to modify a prepared row:
 
-`VersionListDatabaseColumnsEvent` and `VersionListTableColumnsEvent` are no longer dispatched. Use `VersionListRowEvent` to modify prepared rows and override the dashboard template to render additional values or columns.
+```php
+public function onVersionListRow(VersionListRowEvent $event): void
+{
+    $event->row['description'] = strtoupper((string) $event->row['description']);
+}
+```
+
+Complete `tl_version` rows are now selected automatically. To display additional values or columns, combine `VersionListRowEvent` with an override of the `versions` Twig block.
 
 ## Direct PHP API changes
 
-Applications using only the bundle configuration and events do not need the changes in this section. They affect direct construction, decoration, inheritance and calls to bundle classes.
+This section applies only to applications that construct, decorate, extend or call bundle classes directly.
 
-### `VersionListGenerator`
+### `VersionListGenerator` replaced
 
-`VersionListGenerator` has been removed. Use `VersionListBuilder` to build a `VersionList` instance.
+`VersionListGenerator` and its `generate()` and `columns()` methods have been removed. Use the autowired `VersionListBuilder` instead:
+
+```php
+$list = $builder->build($configuration);
+// Or: $list = $builder->buildForCurrentUser();
+
+$rows = $list->rows();
+$pagination = $list->pagination();
+```
+
+`VersionListBuilder::build()` returns a `VersionList` object instead of the old `versions`, `columns` and rendered `pagination` array.
 
 ### `VersionListConfiguration`
 
-The `USER_ACCESS_LEVEL_SELF` and `USER_ACCESS_LEVEL_ALL` constants have been replaced by the `AccessLevel` enum.
+The constructor changed from
 
-The `$columns` constructor argument, `getColumns()` method and `versions_rights.*.columns` configuration option have been removed. Override the dashboard template to customize rendered columns.
+```php
+new VersionListConfiguration($tables, $columns, $allowedUsers);
+```
 
-The constructor now accepts only `array|int` for `$allowedUsers`. Arrays must be non-empty and contain only integers. Use integer `0` to allow all users instead of passing an empty array.
+to
 
-Its state is now private and readonly. Subclasses can no longer access or modify the former protected `$allowedUsers` property.
+```php
+new VersionListConfiguration($tables, $allowedUsers);
+```
+
+`getColumns()` has been removed. The `USER_ACCESS_LEVEL_SELF` and `USER_ACCESS_LEVEL_ALL` constants have been replaced by the `AccessLevel::SELF` and `AccessLevel::ALL` enum cases.
+
+`$allowedUsers` accepts only an integer or a non-empty list of integers. Use integer `0` to allow all users instead of passing an empty array.
+
+The default page size changed from 30 to 15. Call `setPerPage(30)` before building the list if the previous page size must be retained.
+
+The former protected `$allowedUsers` property is now private and readonly. Replace subclasses that access or mutate it with composition.
 
 ### `VersionListConfigurationFactory`
 
-Use `createConfigurationForUser()` to create a version-list configuration for a specific `BackendUser`. `createConfigurationForCurrentUser()` delegates to this method.
+The constructor now requires `Symfony\Bundle\SecurityBundle\Security` instead of `Symfony\Component\Security\Core\Security`. Update decorators, test doubles and manual construction accordingly.
 
-The constructor now requires `Symfony\Bundle\SecurityBundle\Security` instead of the removed `Symfony\Component\Security\Core\Security` class. Update decorators, test doubles and manual construction accordingly.
+`createConfigurationForCurrentUser()` now throws a `LogicException` unless the authenticated user is a Contao `BackendUser`. Use the new `createConfigurationForUser(BackendUser $user)` method when building a configuration for a specific back end user.
 
-The factory now throws a `LogicException` if the authenticated user is not a Contao `BackendUser`.
+### Existing service subclasses
 
-### Native method signatures
+Several existing methods now have native parameter and return types. Subclasses, decorators and test doubles must use compatible signatures.
 
-Bundle classes now use strict types and native parameter and return types. Subclasses, decorators and test doubles must declare compatible signatures.
+The former protected injected-service properties of `VersionListConfigurationFactory`, `UserGroupContainer` and `ParseTemplateListener` are now private and readonly. `ParseTemplateListener` is itself readonly and its constructor now accepts only `VersionListBuilder`. Refactor subclasses that access those properties or use the old constructor to composition.
 
-The former protected injected-service properties of `VersionListConfigurationFactory`, `UserGroupContainer` and `ParseTemplateListener` are now private and readonly. Subclasses accessing or replacing those properties must be refactored to use their own dependencies or composition.
+## Bundle resource paths
 
-`ParseTemplateListener` no longer accepts the Twig Support Bundle's `RenderListener`, `VersionListGenerator` or `VersionListConfigurationFactory`. Its constructor now accepts only `VersionListBuilder`.
-
-Hook and DCA callback registration has moved from Contao service annotations to the `#[AsHook]` and `#[AsCallback]` attributes. Code inspecting the old annotations must use the attributes instead.
-
-## Internal resource paths
-
-The bundle uses the modern root-level directory structure. Update Composer patches, tooling or integrations that reference files inside this package:
+Only integrations or Composer patches that reference files inside this package need to update these paths:
 
 | Previous path | New path |
 | --- | --- |

@@ -12,8 +12,10 @@ Customize the Contao back end dashboard and control which version-log entries ar
 
 ## Requirements
 
-- PHP 8.1 or newer
-- Contao 5.3 or newer
+- PHP `^8.4`
+- Contao `^5.7`
+- Symfony components `^7.4`
+- Doctrine DBAL `^3.7` or `^4.3`
 
 ## Installation
 
@@ -41,6 +43,8 @@ Clear the application cache, then assign the new version right in the settings o
 
 If no assigned configuration matches, the bundle uses the `default` configuration. Administrators are always unrestricted. An empty `tables` list means that all tables are allowed.
 
+When multiple rights are assigned, their table lists are combined. An empty `tables` list makes the table selection unrestricted, and `user_access_level: all` takes precedence over `self`.
+
 ## Customize the dashboard template
 
 The dashboard uses Contao's native template hierarchy. Create `templates/be_advanced_dashboard.html.twig` and extend the bundle template:
@@ -48,11 +52,13 @@ The dashboard uses Contao's native template hierarchy. Create `templates/be_adva
 ```twig
 {% extends "@Contao/be_advanced_dashboard.html.twig" %}
 
-{% block dashboard_top %}
+{% block messages %}
     <section id="tl_custom_welcome">
         <h2>Welcome</h2>
         <p>This could be your message!</p>
     </section>
+
+    {{ parent() }}
 {% endblock %}
 
 {% block shortcuts %}{% endblock %}
@@ -62,16 +68,14 @@ The dashboard uses Contao's native template hierarchy. Create `templates/be_adva
 The following blocks are available:
 
 - `dashboard`
-- `dashboard_top`
 - `messages`
-- `before_shortcuts`
 - `shortcuts`
-- `before_versions`
 - `versions`
-- `dashboard_bottom`
 - `credits`
 
-The old position and visibility variables and the Twig Support Bundle events are no longer supported.
+Override `dashboard` to change the complete layout. To add content to an existing section, override its block and call `{{ parent() }}` before or after the custom markup. Override a section with an empty block to hide it.
+
+The old position and visibility variables and the Twig Support Bundle events are no longer supported. Version table columns are now defined by the `versions` block instead of the removed `versions_rights.*.columns` option.
 
 ## Customize version rows
 
@@ -103,7 +107,7 @@ class AdvancedDashboardEventSubscriber implements EventSubscriberInterface
 }
 ```
 
-Override the dashboard template if you need to render additional row values or table columns.
+The event receives the complete prepared `tl_version` row, including values such as `date`, `username`, `shortTable`, `description` and `operations`. Override the `versions` block if you need to render additional row values or table columns.
 
 ## Configuration reference
 
